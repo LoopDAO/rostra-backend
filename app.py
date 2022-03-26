@@ -1,11 +1,11 @@
 import dataclasses
 import json
 
-from flask import Flask, make_response
+from flask import Flask, abort, make_response
 from flask_mongoengine import MongoEngine
 from flask_restx import Resource, Api, fields
 from flask_cors import CORS
-from models import Guild
+from models import Rule
 from flask import jsonify
 from rsa_verify import flashsigner_verify
 
@@ -31,7 +31,7 @@ rostra_conf = api.namespace('rostra', description='Rostra APIs')
 @api.response(500, 'Internal Error')
 class Get(Resource):
     def get(self):
-        guilds = Guild.objects()
+        guilds = Rule.objects()
         return jsonify({
             "result": guilds
         })
@@ -44,7 +44,7 @@ class Get(Resource):
 class Get(Resource):
     def get(self, guild_id):
         try:
-            query_by_guild_id = Guild.objects(guild_id=guild_id)
+            query_by_guild_id = Rule.objects(guild_id=guild_id)
             print(query_by_guild_id)
             if query_by_guild_id is not None and len(query_by_guild_id) != 0:
                 return jsonify({
@@ -63,7 +63,7 @@ class Get(Resource):
 class Get(Resource):
     def get(self, ipfsAddr):
         try:
-            query_by_ipfsAddr = Guild.objects(ipfsAddr=ipfsAddr)
+            query_by_ipfsAddr = Rule.objects(ipfsAddr=ipfsAddr)
             print(query_by_ipfsAddr)
             if query_by_ipfsAddr is not None and len(query_by_ipfsAddr) != 0:
                 return jsonify({
@@ -104,7 +104,7 @@ class Add(Resource):
         signature = data['signature']
 
         # validation if the guild name already exists
-        if len(Guild.objects(name=data['name'])) != 0:
+        if len(Rule.objects(name=data['name'])) != 0:
             return {'message': 'The Guild Name Already Exists! Please change your guild name'}, 401
         # validation signature
         if len(signature) == 0:
@@ -116,7 +116,7 @@ class Add(Resource):
         result = flashsigner_verify(message=message, signature=signature)
         if result == False:
             return {'message': 'The signature is error'}, 401
-        guild = Guild(
+        guild = Rule(
             guild_id=str(uuid.uuid4()),
             name=data['name'],
             desc=data['desc'],
@@ -136,7 +136,7 @@ class Delete(Resource):
     @api.response(401, 'Validation Error')
     def delete(self, guild_id):
         try:
-            query_by_guild_id = Guild.objects(guild_id=guild_id)
+            query_by_guild_id = Rule.objects(guild_id=guild_id)
             print(query_by_guild_id)
 
             if query_by_guild_id is not None and len(query_by_guild_id) != 0:
@@ -147,3 +147,46 @@ class Delete(Resource):
 
         except Exception as e:
             return {'error': str(e)}
+
+
+@rostra_conf.route('/rule/add/', methods=['POST'])
+class Add(Resource):
+    @rostra_conf.doc(body=resource_fields, responses={201: 'Rule Created'})
+    @api.response(500, 'Internal Error')
+    @api.response(401, 'Validation Error')
+    def post(self):
+        data = api.payload
+        print(data)
+        ruleInfo = {
+            "name": data["name"],
+            "desc": data["desc"],
+            "creator": data["creator"],
+            "ipfsAddr": data["ipfsAddr"],
+            "action": data["action"],
+            "nft": data["nft"]},
+
+        signature = data['signature']
+
+        # validation if the rule name already exists
+        if len(Rule.objects(name=data['name'])) != 0:
+            return {'message': 'The Rule Name Already Exists! Please change your rule name'}, 401
+        # validation signature
+        if len(signature) == 0:
+            return {'message': 'The signature is empty'}, 401
+
+        message = json.dumps(ruleInfo, separators=(',', ':'))
+        if len(message) > 2:
+            message = message[1:-1]
+        # result = flashsigner_verify(message=message, signature=signature)
+        # if result == False:
+        #     return {'message': 'The signature is error'}, 401
+        rule = Rule(
+            rule_id=str(uuid.uuid4()),
+            name=data['name'],
+            desc=data['desc'],
+            creator=data['creator'],
+            ipfsAddr=data['ipfsAddr'],
+            signature=signature
+        )
+        rule.save()
+        return {'message': 'SUCCESS'}, 201
