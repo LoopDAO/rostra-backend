@@ -4,7 +4,7 @@ from mongoengine import (
 )
 
 
-class Rule(me.Document):
+class Guild(me.Document):
     guild_id = StringField()
     name = StringField()
     desc = StringField()
@@ -27,8 +27,3 @@ class Rule(me.Document):
 
     def __repr__(self):
         return "%s , %s , %s , %s\n " % (self.id, self.name, self.desc, self.creator)
-
-
-
-
-
