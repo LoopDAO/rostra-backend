@@ -5,7 +5,7 @@ from flask import Flask, abort, make_response
 from flask_mongoengine import MongoEngine
 from flask_restx import Resource, Api, fields
 from flask_cors import CORS
-from models import Guild
+from models import Guild, Rule
 from flask import jsonify
 from rsa_verify import flashsigner_verify
 
@@ -160,7 +160,6 @@ class Add(Resource):
             "name": data["name"],
             "desc": data["desc"],
             "creator": data["creator"],
-            "ipfsAddr": data["ipfsAddr"],
             "action": data["action"],
             "nft": data["nft"]
         },
@@ -184,7 +183,8 @@ class Add(Resource):
                     name=data['name'],
                     desc=data['desc'],
                     creator=data['creator'],
-                    ipfsAddr=data['ipfsAddr'],
-                    signature=signature)
+                    signature=signature,
+                    action=data['action'],
+                    nft=data['nft'])
         rule.save()
         return {'message': 'SUCCESS'}, 201
