@@ -147,10 +147,18 @@ class Delete(Resource):
             return {'error': str(e)}
 
 
+rule_fields = rostra_conf.model(
+    'rule', {
+        'name': fields.String(required=True, description='The rule name identifier'),
+        "desc": fields.String,
+        "creator": fields.String,
+        "ipfsAddr": fields.String(required=True, description='The ipfs address of the rule'),
+        "signature": fields.String(requerd=True, description='The signature of the rule'),
+    })
 @rostra_conf.route('/rule/add/', methods=['POST'])
 class Add(Resource):
 
-    @rostra_conf.doc(body=resource_fields, responses={201: 'Rule Created'})
+    @rostra_conf.doc(body=rule_fields, responses={201: 'Rule Created'})
     @api.response(500, 'Internal Error')
     @api.response(401, 'Validation Error')
     def post(self):
@@ -188,3 +196,31 @@ class Add(Resource):
                     nft=data['nft'])
         rule.save()
         return {'message': 'SUCCESS'}, 201
+
+
+@rostra_conf.route('/rule/get/', methods=['GET'])
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class Get(Resource):
+
+    def get(self):
+        rules = Rule.objects()
+        return jsonify({"result": rules})
+
+
+@rostra_conf.route('/rule/<rule_id>', methods=['GET'])
+@rostra_conf.doc(params={'rule_id': 'rule id'})
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class Get(Resource):
+
+    def get(self, rule_id):
+        try:
+            query_by_rule_id = Rule.objects(rule_id=rule_id)
+            print(query_by_rule_id)
+            if query_by_rule_id is not None and len(query_by_rule_id) != 0:
+                return jsonify({"result": query_by_rule_id[0]})
+            else:
+                return {"result": ''}, 200
+        except Exception as e:
+            return {'error': str(e)}
