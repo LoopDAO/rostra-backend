@@ -5,24 +5,21 @@ from flask import Flask, abort, make_response
 from flask_mongoengine import MongoEngine
 from flask_restx import Resource, Api, fields
 from flask_cors import CORS
-from models import Guild, Rule
+from models import Guild, Rule, RunResult
 from flask import jsonify
 from rsa_verify import flashsigner_verify
 
 import uuid
+import pprint
+from bson.objectid import ObjectId
 
 app = Flask(__name__)
 CORS(app)
 
-app.config['MONGODB_SETTINGS'] = {
-    'db': 'guild',
-    'host': 'localhost',
-    'port': 27017
-}
+app.config['MONGODB_SETTINGS'] = {'db': 'guild', 'host': 'localhost', 'port': 27017}
 db = MongoEngine()
 db.init_app(app)
-api = Api(app, version='1.0', title='Rostra Backend API',
-          description='Rostra Backend Restful API')
+api = Api(app, version='1.0', title='Rostra Backend API', description='Rostra Backend Restful API')
 rostra_conf = api.namespace('rostra', description='Rostra APIs')
 
 
@@ -30,11 +27,10 @@ rostra_conf = api.namespace('rostra', description='Rostra APIs')
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
 class Get(Resource):
+
     def get(self):
         guilds = Guild.objects()
-        return jsonify({
-            "result": guilds
-        })
+        return jsonify({"result": guilds})
 
 
 @rostra_conf.route('/guild/<guild_id>', methods=['GET'])
@@ -42,14 +38,13 @@ class Get(Resource):
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
 class Get(Resource):
+
     def get(self, guild_id):
         try:
             query_by_guild_id = Guild.objects(guild_id=guild_id)
             print(query_by_guild_id)
             if query_by_guild_id is not None and len(query_by_guild_id) != 0:
-                return jsonify({
-                    "result": query_by_guild_id[0]
-                })
+                return jsonify({"result": query_by_guild_id[0]})
             else:
                 return {"result": ''}, 200
         except Exception as e:
@@ -61,14 +56,13 @@ class Get(Resource):
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
 class Get(Resource):
+
     def get(self, ipfsAddr):
         try:
             query_by_ipfsAddr = Guild.objects(ipfsAddr=ipfsAddr)
             print(query_by_ipfsAddr)
             if query_by_ipfsAddr is not None and len(query_by_ipfsAddr) != 0:
-                return jsonify({
-                    "result": query_by_ipfsAddr
-                })
+                return jsonify({"result": query_by_ipfsAddr})
             else:
                 return {"result": []}, 200
         except Exception as e:
@@ -79,27 +73,25 @@ class Get(Resource):
 #     'name': fields.String,
 #     'baseURI': fields.String
 # })
-resource_fields = rostra_conf.model('guild', {
-    'name': fields.String(required=True, description='The guild name identifier'),
-    "desc": fields.String,
-    "creator": fields.String,
-    "ipfsAddr": fields.String(required=True, description='The ipfs address of the guild'),
-    "signature": fields.String(requerd=True, description='The signature of the guild'),
-})
+resource_fields = rostra_conf.model(
+    'guild', {
+        'name': fields.String(required=True, description='The guild name identifier'),
+        "desc": fields.String,
+        "creator": fields.String,
+        "ipfsAddr": fields.String(required=True, description='The ipfs address of the guild'),
+        "signature": fields.String(requerd=True, description='The signature of the guild'),
+    })
 
 
 @rostra_conf.route('/guild/add/', methods=['POST'])
 class Add(Resource):
+
     @rostra_conf.doc(body=resource_fields, responses={201: 'Guild Created'})
     @api.response(500, 'Internal Error')
     @api.response(401, 'Validation Error')
     def post(self):
         data = api.payload
-        guildInfo = {
-            "name": data["name"],
-            "desc": data["desc"],
-            "creator": data["creator"],
-            "ipfsAddr": data["ipfsAddr"]},
+        guildInfo = {"name": data["name"], "desc": data["desc"], "creator": data["creator"], "ipfsAddr": data["ipfsAddr"]},
 
         signature = data['signature']
 
@@ -129,6 +121,7 @@ class Add(Resource):
 @rostra_conf.route('/guild/delete/<guild_id>', methods=['DELETE'])
 @rostra_conf.doc(params={'guild_id': 'Id of the guild'})
 class Delete(Resource):
+
     @api.response(201, 'Guild Deleted')
     @api.response(500, 'Internal Error')
     @api.response(401, 'Validation Error')
@@ -147,6 +140,8 @@ class Delete(Resource):
             return {'error': str(e)}
 
 
+#==========================================================
+#rule start
 rule_fields = rostra_conf.model(
     'rule', {
         'name': fields.String(required=True, description='The rule name identifier'),
@@ -154,7 +149,11 @@ rule_fields = rostra_conf.model(
         "creator": fields.String,
         "ipfsAddr": fields.String(required=True, description='The ipfs address of the rule'),
         "signature": fields.String(requerd=True, description='The signature of the rule'),
+        "action": fields.List(fields.String, required=True, description='The action info of the rule'),
+        "nft": fields.List(fields.String, required=True, description='The nft info of the rule'),
     })
+
+
 @rostra_conf.route('/rule/add/', methods=['POST'])
 class Add(Resource):
 
@@ -162,40 +161,42 @@ class Add(Resource):
     @api.response(500, 'Internal Error')
     @api.response(401, 'Validation Error')
     def post(self):
-        data = api.payload
-        print(data)
-        ruleInfo = {
-            "name": data["name"],
-            "desc": data["desc"],
-            "creator": data["creator"],
-            "action": data["action"],
-            "nft": data["nft"]
-        },
+        try:
+            data = api.payload
+            print(data)
+            ruleInfo = {
+                "name": data["name"],
+                "desc": data["desc"],
+                "creator": data["creator"],
+                "action": data["action"],
+                "nft": data["nft"]
+            },
 
-        signature = data['signature']
+            signature = data['signature']
 
-        # validation if the rule name already exists
-        if len(Rule.objects(name=data['name'])) != 0:
-            return {'message': 'The Rule Name Already Exists! Please change your rule name'}, 401
-        # validation signature
-        if len(signature) == 0:
-            return {'message': 'The signature is empty'}, 401
+            # validation if the rule name already exists
+            if len(Rule.objects(name=data['name'])) != 0:
+                return {'errror': 'The Rule Name Already Exists! Please change your rule name'}, 401
+            # validation signature
+            if len(signature) == 0:
+                return {'errror': 'The signature is empty'}, 401
 
-        message = json.dumps(ruleInfo, separators=(',', ':'))
-        if len(message) > 2:
-            message = message[1:-1]
-        # result = flashsigner_verify(message=message, signature=signature)
-        # if result == False:
-        #     return {'message': 'The signature is error'}, 401
-        rule = Rule(rule_id=str(uuid.uuid4()),
-                    name=data['name'],
-                    desc=data['desc'],
-                    creator=data['creator'],
-                    signature=signature,
-                    action=data['action'],
-                    nft=data['nft'])
-        rule.save()
-        return {'message': 'SUCCESS'}, 201
+            message = json.dumps(ruleInfo, separators=(',', ':'))
+            if len(message) > 2:
+                message = message[1:-1]
+            # result = flashsigner_verify(message=message, signature=signature)
+            # if result == False:
+            #     return {'message': 'The signature is error'}, 401
+            rule = Rule(name=data['name'],
+                        desc=data['desc'],
+                        creator=data['creator'],
+                        signature=signature,
+                        action=data['action'],
+                        nft=data['nft'])
+            rule.save()
+            return {'rule_id': str(rule['id'])}, 201
+        except Exception as e:
+            return {'error': str(e)}, 500
 
 
 @rostra_conf.route('/rule/get/', methods=['GET'])
@@ -204,8 +205,14 @@ class Add(Resource):
 class Get(Resource):
 
     def get(self):
-        rules = Rule.objects()
-        return jsonify({"result": rules})
+        try:
+            query_by_rule_id = Rule.objects()
+            if query_by_rule_id is not None and len(query_by_rule_id) != 0:
+                return jsonify({"result": query_by_rule_id})
+            else:
+                return {"result": []}, 200
+        except Exception as e:
+            return {'error': str(e), 'errid': 'err-except'}
 
 
 @rostra_conf.route('/rule/<rule_id>', methods=['GET'])
@@ -223,4 +230,89 @@ class Get(Resource):
             else:
                 return {"result": ''}, 200
         except Exception as e:
-            return {'error': str(e)}
+            return {'error': str(e), 'errid': 'err-except'}, 500
+
+
+#rule end
+#==========================================================
+#Runner start
+runresult_fields = rostra_conf.model(
+    'runresult', {
+        'rule_name': fields.String(required=True, description='The rule name identifier'),
+        "rule_creator": fields.String,
+        'rule_creator': fields.String,
+        'result': fields.List(fields.String),
+    })
+
+
+@rostra_conf.route('/runresult/add/', methods=['POST'])
+class Add(Resource):
+
+    @rostra_conf.doc(body=runresult_fields, responses={201: 'RunResult Created'})
+    @api.response(500, 'Internal Error')
+    @api.response(401, 'Validation Error')
+    def post(self):
+        try:
+            data = api.payload
+            print(data)
+
+            if len(RunResult.objects(rule_id=data['rule_id'])) != 0:
+                return {'errror': 'The RunResult Already Exists! '}, 401
+
+            runresult = RunResult(rule_id=data['rule_id'], result=data['result'])
+            runresult.save()
+            return {'id': str(runresult['id']), 'rule_id': runresult['rule_id']}, 201
+        except Exception as e:
+            return {'error': str(e)}, 500
+
+
+@rostra_conf.route('/runresult/<id>', methods=['GET'])
+@rostra_conf.doc(params={'id': 'id'})
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class Get(Resource):
+
+    def get(self, runresult_id):
+        try:
+            pprint.pprint(RunResult.find_one({"_id": ObjectId(runresult_id)}))
+            query_by_runresult_id = RunResult.objects(_id=runresult_id)
+            print(query_by_runresult_id)
+            if query_by_runresult_id is not None and len(query_by_runresult_id) != 0:
+                return jsonify({"result": query_by_runresult_id[0]})
+            else:
+                return {"result": ''}, 200
+        except Exception as e:
+            return {'error': str(e), 'errid': 'err-except'}, 500
+
+
+@rostra_conf.route('/runresult/ruleid/<rule_id>', methods=['GET'])
+@rostra_conf.doc(params={'rule_id': 'rule_id'})
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class Get(Resource):
+
+    def get(self, rule_id):
+        try:
+            query_by_rule_id = RunResult.objects(rule_id=rule_id)
+            if query_by_rule_id is not None and len(query_by_rule_id) != 0:
+                return jsonify({"result": query_by_rule_id[0]})
+            else:
+                return {"result": ''}, 200
+        except Exception as e:
+            return {'error': str(e), 'errid': 'err-except'}, 500
+
+
+@rostra_conf.route('/runresult/get/', methods=['GET'])
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class Get(Resource):
+
+    def get(self):
+        try:
+            query = RunResult.objects()
+            if query is not None and len(query) != 0:
+                return jsonify({"result": query})
+            else:
+                return {"result": []}, 200
+        except Exception as e:
+            return {'error': str(e), 'errid': 'err-except'}

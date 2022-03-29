@@ -15,6 +15,8 @@ class Guild(me.Document):
         return "%s , %s , %s , %s\n " % (self.guild_id, self.name, self.desc, self.creator)
 
 
+#---------------------------------------------------------------------------------
+#rule
 class RuleCondition(me.Document):
     x = StringField()
     of = StringField()
@@ -52,3 +54,16 @@ class Rule(me.Document):
 
     def __repr__(self):
         return "%s , %s , %s , %s\n " % (self.id, self.name, self.desc, self.creator)
+
+
+#---------------------------------------------------------------------------------
+#Runner
+class RunnerCondition(me.Document):
+    address = StringField()
+
+
+class RunResult(me.Document):
+    rule_id = StringField()
+    rule_name = StringField()
+    rule_creator = StringField()
+    result = ReferenceField(RunnerCondition)
