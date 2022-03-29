@@ -1,26 +1,35 @@
 import dataclasses
 import json
 
-from flask import Flask, abort, make_response
+from flask import Flask, abort, make_response, request
 from flask_mongoengine import MongoEngine
 from flask_restx import Resource, Api, fields
 from flask_cors import CORS
-from models import Guild, Rule, RunResult
+from models import Guild, Rule, RunResult, RunnerCondition
 from flask import jsonify
 from rsa_verify import flashsigner_verify
+from runner import runner_start
 
 import uuid
 import pprint
 from bson.objectid import ObjectId
 
+from flask import Flask
+import datetime
+from flask_apscheduler import APScheduler
+
 app = Flask(__name__)
-CORS(app)
 
 app.config['MONGODB_SETTINGS'] = {'db': 'guild', 'host': 'localhost', 'port': 27017}
+
 db = MongoEngine()
 db.init_app(app)
 api = Api(app, version='1.0', title='Rostra Backend API', description='Rostra Backend Restful API')
 rostra_conf = api.namespace('rostra', description='Rostra APIs')
+
+runner_start(app)
+
+CORS(app)
 
 
 @rostra_conf.route('/guild/get/', methods=['GET'])
@@ -274,7 +283,8 @@ class Get(Resource):
 
     def get(self, runresult_id):
         try:
-            pprint.pprint(RunResult.find_one({"_id": ObjectId(runresult_id)}))
+            query_by_runresult_id = RunResult.objects.get_or_404(_id=runresult_id)
+            pprint.pprint(query_by_runresult_id)
             query_by_runresult_id = RunResult.objects(_id=runresult_id)
             print(query_by_runresult_id)
             if query_by_runresult_id is not None and len(query_by_runresult_id) != 0:
@@ -316,3 +326,37 @@ class Get(Resource):
                 return {"result": []}, 200
         except Exception as e:
             return {'error': str(e), 'errid': 'err-except'}
+
+
+@rostra_conf.route('/runresult/delete', methods=['POST'])
+@rostra_conf.doc(params={'rule_id': 'Id of the rule', 'address': 'address of runner result'})
+class Delete(Resource):
+
+    @api.response(201, 'Address Deleted')
+    @api.response(500, 'Internal Error')
+    @api.response(401, 'Validation Error')
+    def post(self):
+        try:
+            data = api.payload
+            rule_id = data['rule_id']
+            address = data['address']
+
+            query_by_rule_id = RunResult.objects(rule_id=rule_id)
+
+            if query_by_rule_id is not None and len(query_by_rule_id) != 0:
+                result = jsonify(query_by_rule_id[0]['result']).json
+                if (address in result):
+                    result.remove(address)
+                    query_by_rule_id.update(result=result)
+                    return {'delete': address}, 201
+                else:
+                    return {'error': 'Address Not Found!'}, 401
+            else:
+                return {"error": 'The Result cannot be found'}, 401
+
+        except Exception as e:
+            return {'error': str(e)}, 500
+
+
+#Runner end
+#==========================================================

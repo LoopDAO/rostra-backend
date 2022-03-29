@@ -4,3 +4,4 @@ flask_mongoengine==1.0.0
 flask_restx==0.5.1
 mongoengine==0.23.1
 rsa==4.8
+flask_apscheduler==1.12.3

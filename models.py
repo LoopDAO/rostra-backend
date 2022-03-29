@@ -66,4 +66,5 @@ class RunResult(me.Document):
     rule_id = StringField()
     rule_name = StringField()
     rule_creator = StringField()
-    result = ReferenceField(RunnerCondition)
+    #result = ReferenceField(RunnerCondition)
+    result = ListField(StringField())
