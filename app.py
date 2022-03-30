@@ -25,7 +25,7 @@ app.config['MONGODB_SETTINGS'] = {'db': 'guild', 'host': 'localhost', 'port': 27
 db = MongoEngine()
 db.init_app(app)
 api = Api(app, version='1.0', title='Rostra Backend API', description='Rostra Backend Restful API')
-rostra_conf = api.namespace('rostra', description='Rostra APIs')
+rostra_conf = api.namespace('', description='Rostra APIs')
 
 runner_start(app)
 
