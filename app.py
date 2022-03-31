@@ -1,5 +1,6 @@
 import dataclasses
 import json
+from dotenv import load_dotenv
 
 from flask import Flask, abort, make_response, request
 from flask_mongoengine import MongoEngine
@@ -26,6 +27,8 @@ db = MongoEngine()
 db.init_app(app)
 api = Api(app, version='1.0', title='Rostra Backend API', description='Rostra Backend Restful API')
 rostra_conf = api.namespace('', description='Rostra APIs')
+
+load_dotenv()
 
 runner_start(app)
 
@@ -164,7 +167,7 @@ rule_fields = rostra_conf.model(
 
 
 @rostra_conf.route('/rule/add/', methods=['POST'])
-class Add(Resource):
+class RuleAdd(Resource):
 
     @rostra_conf.doc(body=rule_fields, responses={201: 'Rule Created'})
     @api.response(500, 'Internal Error')

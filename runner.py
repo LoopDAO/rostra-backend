@@ -1,5 +1,7 @@
 import datetime
 import logging
+import os
+from isodate import parse_datetime
 import requests
 import json
 from pprint import pprint
@@ -80,10 +82,33 @@ def run_refresh_rule(rule):
         return False
 
 
+def is_to_time(rule):
+    try:
+        #2022-03-28T03:34:24.467Z
+        start_date = parse_datetime(rule.action.start_time)
+        start_date = start_date.date()
+
+        end_date = parse_datetime(rule.action.end_time)
+        end_date = parse_datetime('2022-04-21T03:34:24.467Z')
+        end_date = end_date.date()
+
+        now = datetime.datetime.now().date()
+        if start_date <= now <= end_date and now == end_date:
+            return True
+        else:
+            return False
+    except Exception as e:
+        logging.error(e)
+        return False
+
+
 def scan_rule_list():
     #未添加时间及类型检查
     rules = Rule.objects(runnered=False)
     for rule in rules:
+        if is_to_time(rule) == False:
+            logging.info("rule {}-{} is not to time".format(rule.id, rule.name))
+            continue
         rule.runnered = True
         rule.save()
         try:
@@ -112,12 +137,13 @@ def post_github_graphql(input):
             }
         }
         }"""
-    headers = {'Content-Type': 'application/json', 'Authorization': 'bearer ' + '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'}
+
+    headers = {'Content-Type': 'application/json', 'Authorization': 'bearer ' + str(os.environ.get("GITHUB_GRAPHQL_APIKEY"))}
     request = requests.post('https://api.github.com/graphql', json={'query': query}, headers=headers)
     if request.status_code == 200:
         return request.json(), 0
     else:
-        logging.error("Query failed to run by returning code of {}. {}".format(request.status_code, query))
+        logging.error("Query failed to run by returning code of {}. {}\n{}".format(request.status_code, request.reason, query))
         return None, -1
 
 
