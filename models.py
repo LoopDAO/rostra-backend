@@ -1,6 +1,6 @@
 from cgi import test
 import mongoengine as me
-from mongoengine import (StringField, ListField, ReferenceField)
+from mongoengine import (StringField, ListField, ReferenceField, BooleanField)
 
 
 class Guild(me.Document):
@@ -58,6 +58,7 @@ class Rule(me.Document):
     ipfsAddr = StringField()
     action = me.EmbeddedDocumentField(RuleAction)
     nft = me.EmbeddedDocumentField(RuleNFT)
+    runnered = BooleanField()
 
     def __repr__(self):
         return "%s , %s , %s , %s\n " % (self.id, self.name, self.desc, self.creator)

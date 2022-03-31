@@ -5,3 +5,5 @@ flask_restx==0.5.1
 mongoengine==0.23.1
 rsa==4.8
 flask_apscheduler==1.12.3
+python-dotenv==0.20.0
+isodate==0.6.1
