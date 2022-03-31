@@ -5,7 +5,7 @@ from flask import Flask, abort, make_response, request
 from flask_mongoengine import MongoEngine
 from flask_restx import Resource, Api, fields
 from flask_cors import CORS
-from models import Guild, Rule, RunResult, RunnerCondition
+from models import Guild, Rule, RunResult, RunnerCondition,Nft
 from flask import jsonify
 from rsa_verify import flashsigner_verify
 from runner import runner_start
@@ -65,7 +65,6 @@ class Get(Resource):
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
 class Get(Resource):
-
     def get(self, ipfsAddr):
         try:
             query_by_ipfsAddr = Guild.objects(ipfsAddr=ipfsAddr)
@@ -78,10 +77,6 @@ class Get(Resource):
             return {'error': str(e)}
 
 
-# nft = rostra_conf.model('Nft', {
-#     'name': fields.String,
-#     'baseURI': fields.String
-# })
 resource_fields = rostra_conf.model(
     'guild', {
         'name': fields.String(required=True, description='The guild name identifier'),
@@ -145,6 +140,66 @@ class Delete(Resource):
             else:
                 return {"messgae": 'The Guild Id cannot be found'}, 401
 
+        except Exception as e:
+            return {'error': str(e)}
+
+
+#nft
+nft_model = rostra_conf.model(
+    'nft', {
+        'name': fields.String(required=True, description='The nft name'),
+        "desc": fields.String,
+        "image": fields.String(required=True, description='The image url of nft'),
+        "cota_id": fields.String(required=True, description='The cota id of the nft')
+    })
+
+
+@rostra_conf.route('/nft/add/', methods=['POST'])
+class Add(Resource):
+
+    @rostra_conf.doc(body=nft_model, responses={201: 'NFT Created'})
+    @api.response(500, 'Internal Error')
+    @api.response(401, 'Validation Error')
+    def post(self):
+        try:
+            data = api.payload
+            print(data)
+            # validation if the nft name already exists
+            if len(Nft.objects(name=data['name'])) != 0:
+                return {'errror': 'The Rule Name Already Exists! Please change your rule name'}, 401
+
+            nft = Nft(name=data['name'],
+                      desc=data['desc'],
+                      image=data['image'],
+                      cota_id=data['cota_id'])
+            nft.save()
+            return {'message': 'SUCCESS'}, 201
+        except Exception as e:
+            return {'error': str(e)}, 500
+
+
+@rostra_conf.route('/nft/get/', methods=['GET'])
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class Get(Resource):
+    def get(self):
+        nfts = Nft.objects()
+        return jsonify({"result": nfts})
+
+
+@rostra_conf.route('/nft/get/<cotaId>', methods=['GET'])
+@rostra_conf.doc(params={'cotaId': 'cota id of the nft'})
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class Get(Resource):
+    def get(self, cotaId):
+        try:
+            query_by_cotaId = Nft.objects(cota_id=cotaId)
+            print(query_by_cotaId)
+            if query_by_cotaId is not None and len(query_by_cotaId) != 0:
+                return jsonify({"result": query_by_cotaId})
+            else:
+                return {"result": []}, 200
         except Exception as e:
             return {'error': str(e)}
 

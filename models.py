@@ -15,6 +15,13 @@ class Guild(me.Document):
         return "%s , %s , %s , %s\n " % (self.guild_id, self.name, self.desc, self.creator)
 
 
+class Nft(me.Document):
+    name = StringField()
+    desc = StringField()
+    image = StringField()
+    cota_id = StringField()
+
+
 #---------------------------------------------------------------------------------
 #rule
 class RuleCondition(me.Document):
