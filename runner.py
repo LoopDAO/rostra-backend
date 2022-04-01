@@ -1,12 +1,10 @@
 import datetime
 import logging
 import os
-from isodate import parse_datetime
 import requests
 import json
 from pprint import pprint
 from bson.objectid import ObjectId
-from cv2 import applyColorMap
 from flask import Flask, abort, jsonify, make_response
 from flask_apscheduler import APScheduler
 from flask_cors import CORS
@@ -15,7 +13,7 @@ from flask_restx import Api, Resource, fields
 
 from models import Guild, Rule, RunResult
 from rsa_verify import flashsigner_verify
-
+from isodate import parse_datetime
 
 def method_runnert(a, b):
     print(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'Running')
