@@ -34,6 +34,7 @@ runner_start(app)
 
 CORS(app)
 
+app.url_map.strict_slashes = False
 
 @rostra_conf.route('/guild/get/', methods=['GET'])
 @api.response(200, 'Query Successful')
@@ -314,7 +315,7 @@ runresult_fields = rostra_conf.model(
     })
 
 
-@rostra_conf.route('/runresult/add/', methods=['POST'])
+@rostra_conf.route('/runresult/add', methods=['POST'])
 class RunresultAdd(Resource):
 
     @rostra_conf.doc(body=runresult_fields, responses={201: 'RunResult Created'})
@@ -335,7 +336,7 @@ class RunresultAdd(Resource):
             return {'error': str(e)}, 500
 
 
-@rostra_conf.route('/runresult/refresh/', methods=['POST'])
+@rostra_conf.route('/runresult/refresh', methods=['POST'])
 class RuleRunresultRefresh(Resource):
 
     @rostra_conf.doc(params={'rule_id': 'rule_id'})
@@ -409,7 +410,7 @@ class RunresultRuleidGet(Resource):
             return {'error': str(e), 'errid': 'err-except'}, 500
 
 
-@rostra_conf.route('/runresult/get/', methods=['GET'])
+@rostra_conf.route('/runresult/get', methods=['GET'])
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
 class RunresultGet(Resource):
