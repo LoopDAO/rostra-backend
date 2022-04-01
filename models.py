@@ -39,16 +39,6 @@ class RuleAction(me.EmbeddedDocument):
     def __repr__(self):
         return "%s , %s , %s , %s\n " % (self.type, self.url, self.action, self.start_time)
 
-
-class RuleNFT(me.EmbeddedDocument):
-    name = StringField()
-    desc = StringField()
-    image = StringField()
-
-    def __repr__(self):
-        return "%s , %s , %s\n " % (self.name, self.desc, self.image)
-
-
 class Rule(me.Document):
     rule_id = StringField()
     name = StringField()
@@ -57,7 +47,7 @@ class Rule(me.Document):
     signature = StringField()
     ipfsAddr = StringField()
     action = me.EmbeddedDocumentField(RuleAction)
-    nft = me.EmbeddedDocumentField(RuleNFT)
+    nft = StringField()
     runnered = BooleanField()
 
     def __repr__(self):
