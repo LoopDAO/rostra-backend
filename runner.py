@@ -73,7 +73,7 @@ def run_refresh_rule(rule):
         rule.update(runnered=False)
         return False
 
-
+#检查是否在时间范围内且到结束日期当日（精确到‘日’）
 def is_to_time(rule):
     try:
         #2022-03-28T03:34:24.467Z
@@ -81,7 +81,7 @@ def is_to_time(rule):
         start_date = start_date.date()
 
         end_date = parse_datetime(rule.action.end_time)
-        end_date = parse_datetime('2022-04-21T03:34:24.467Z')
+        #end_date = parse_datetime('2022-04-21T03:34:24.467Z')
         end_date = end_date.date()
 
         now = datetime.datetime.now().date()
