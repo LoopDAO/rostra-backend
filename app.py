@@ -1,31 +1,30 @@
 import dataclasses
+import datetime
 import json
-from dotenv import load_dotenv
+import pprint
+import uuid
 
-from flask import Flask, abort, make_response, request
-from flask_mongoengine import MongoEngine
-from flask_restx import Resource, Api, fields
+from bson.objectid import ObjectId
+from dotenv import load_dotenv
+from flask import Flask, abort, jsonify, make_response, request
+from flask_apscheduler import APScheduler
 from flask_cors import CORS
-from models import Guild, Rule, RunResult, RunnerCondition,Nft
-from flask import jsonify
+from flask_mongoengine import MongoEngine
+from flask_restx import Api, Resource, fields
+
+from models import Guild, Nft, Rule, RunnerCondition, RunResult
 from rsa_verify import flashsigner_verify
 from runner import run_refresh_rule, runner_start
 
-import uuid
-import pprint
-from bson.objectid import ObjectId
-
-from flask import Flask
-import datetime
-from flask_apscheduler import APScheduler
-
 app = Flask(__name__)
 
-app.config['MONGODB_SETTINGS'] = {'db': 'guild', 'host': 'localhost', 'port': 27017}
+app.config['MONGODB_SETTINGS'] = {
+    'db': 'guild', 'host': 'localhost', 'port': 27017}
 
 db = MongoEngine()
 db.init_app(app)
-api = Api(app, version='1.0', title='Rostra Backend API', description='Rostra Backend Restful API')
+api = Api(app, version='1.0', title='Rostra Backend API',
+          description='Rostra Backend Restful API')
 rostra_conf = api.namespace('', description='Rostra APIs')
 
 load_dotenv()
@@ -35,6 +34,7 @@ runner_start(app)
 CORS(app)
 
 app.url_map.strict_slashes = False
+
 
 @rostra_conf.route('/guild/get/', methods=['GET'])
 @api.response(200, 'Query Successful')
@@ -99,7 +99,8 @@ class Add(Resource):
     @api.response(401, 'Validation Error')
     def post(self):
         data = api.payload
-        guildInfo = {"name": data["name"], "desc": data["desc"], "creator": data["creator"], "ipfsAddr": data["ipfsAddr"]},
+        guildInfo = {"name": data["name"], "desc": data["desc"],
+                     "creator": data["creator"], "ipfsAddr": data["ipfsAddr"]},
 
         signature = data['signature']
 
@@ -148,7 +149,7 @@ class Delete(Resource):
             return {'error': str(e)}
 
 
-#nft
+# nft
 nft_model = rostra_conf.model(
     'nft', {
         'name': fields.String(required=True, description='The nft name'),
@@ -208,8 +209,8 @@ class Get(Resource):
             return {'error': str(e)}
 
 
-#==========================================================
-#rule start
+# ==========================================================
+# rule start
 rule_fields = rostra_conf.model(
     'rule', {
         'name': fields.String(required=True, description='The rule name identifier'),
@@ -303,9 +304,27 @@ class RuleGet(Resource):
             return {'error': str(e), 'errid': 'err-except'}, 500
 
 
-#rule end
-#==========================================================
-#Runner start
+@rostra_conf.route('/rule/walletaddr/<wallet_addr>', methods=['GET'])
+@rostra_conf.doc(params={'wallet_addr': 'wallet_addr id'})
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class RuleGetByWallet(Resource):
+
+    def get(self, wallet_addr):
+        try:
+            query = Rule.objects(creator=wallet_addr)
+            print(query)
+            if query is not None and len(query) != 0:
+                return jsonify({"result": query})
+            else:
+                return {"result": ''}, 200
+        except Exception as e:
+            return {'error': str(e), 'errid': 'err-except'}, 500
+
+
+# rule end
+# ==========================================================
+# Runner start
 runresult_fields = rostra_conf.model(
     'runresult', {
         'rule_name': fields.String(required=True, description='The rule name identifier'),
@@ -329,27 +348,47 @@ class RunresultAdd(Resource):
             if len(RunResult.objects(rule_id=data['rule_id'])) != 0:
                 return {'errror': 'The RunResult Already Exists! '}, 401
 
-            runresult = RunResult(rule_id=data['rule_id'], result=data['result'])
+            runresult = RunResult(
+                rule_id=data['rule_id'], result=data['result'])
             runresult.save()
             return {'id': str(runresult['id']), 'rule_id': runresult['rule_id']}, 201
         except Exception as e:
             return {'error': str(e)}, 500
 
+# 统一接口返回信息
 
-@rostra_conf.route('/runresult/refresh', methods=['POST'])
-class RuleRunresultRefresh(Resource):
 
+def ResponseInfo(error, message):
+    return {'error': error, 'message': message}, error
+
+
+@rostra_conf.route('/runresult/refresh/<rule_id>', methods=['GET'])
+class RunresultRefreshByRuleIDGET(Resource):
+    @rostra_conf.doc(params={'rule_id': 'rule_id'})
+    @api.response(500, 'Internal Error')
+    @api.response(401, 'Validation Error')
+    def get(self, rule_id):
+        try:
+            rule = Rule.objects(id=rule_id)
+            success = run_refresh_rule(rule[0])
+            if success:
+                return {'message': 'RuleRunresultRefresh success'}, 201
+            else:
+                return {'message': 'fail'}, 401
+        except Exception as e:
+            return {'error': str(e)}, 500
+
+
+@rostra_conf.route('/runresult/refresh/', methods=['POST'])
+class RunresultRefreshByRuleID(Resource):
     @rostra_conf.doc(params={'rule_id': 'rule_id'})
     @api.response(500, 'Internal Error')
     @api.response(401, 'Validation Error')
     def post(self):
         try:
             data = api.payload
-            print("/runresult/refresh/", data)
-
+            print("/runresult/refresh/", data['rule_id'])
             rule = Rule.objects(id=data['rule_id'])
-            rr = rule[0]
-            print(rr)
             success = run_refresh_rule(rule[0])
             if success:
                 return {'message': 'RuleRunresultRefresh success'}, 201
@@ -386,7 +425,7 @@ class RunresultGetByWallet(Resource):
         try:
             query = RunResult.objects(rule_creator=wallet_addr)
             if query is not None and len(query) != 0:
-                return jsonify({"result": query[0]})
+                return jsonify({"result": query})
             else:
                 return {"result": ''}, 200
         except Exception as e:
@@ -413,7 +452,7 @@ class RunresultRuleidGet(Resource):
 @rostra_conf.route('/runresult/get', methods=['GET'])
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
-class RunresultGet(Resource):
+class RunresultGetAll(Resource):
 
     def get(self):
         try:
@@ -456,5 +495,5 @@ class RunresultDelete(Resource):
             return {'error': str(e)}, 500
 
 
-#Runner end
-#==========================================================
+# Runner end
+# ==========================================================
