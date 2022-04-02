@@ -48,7 +48,7 @@ class Rule(me.Document):
     ipfsAddr = StringField()
     action = me.EmbeddedDocumentField(RuleAction)
     nft = StringField()
-    runnered = BooleanField()
+    finished = BooleanField()
 
     def __repr__(self):
         return "%s , %s , %s , %s\n " % (self.id, self.name, self.desc, self.creator)

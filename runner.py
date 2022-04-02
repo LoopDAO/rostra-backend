@@ -60,7 +60,7 @@ def pick_ckb_address(text):
 #跳过规则检查,直接执行rule
 def run_refresh_rule(rule):
     try:
-        rule.update(runnered=True)
+        rule.update(finished=True)
         addresses, success = run_github_discussions_ckb(rule.action.url)
         if success:
             RunResult.objects.create(rule_id=str(rule.id), rule_name=rule.name, rule_creator=rule.creator, result=addresses)
@@ -70,7 +70,7 @@ def run_refresh_rule(rule):
             return False
     except Exception as e:
         logging.error(e)
-        rule.update(runnered=False)
+        rule.update(finished=False)
         return False
 
 
@@ -96,22 +96,22 @@ def is_to_time(rule):
 
 def scan_rule_list():
     #未添加时间及类型检查
-    rules = Rule.objects(runnered=False)
+    rules = Rule.objects(finished=False)
     for rule in rules:
         if is_to_time(rule) == False:
             logging.info("rule {}-{} is not to time".format(rule.id, rule.name))
             continue
-        rule.runnered = True
+        rule.finished = True
         rule.save()
         try:
             addresses, success = run_github_discussions_ckb(rule.action.url)
             if success:
                 RunResult.objects.create(rule_id=str(rule.id), rule_name=rule.name, rule_creator=rule.creator, result=addresses)
             else:
-                logging.error("rull {}-{} runner fail".format(rule.id, rule.name))
+                logging.error("rule {}-{} runner fail".format(rule.id, rule.name))
         except Exception as e:
             logging.error(e)
-            rule.runnered = False
+            rule.finished = False
             rule.save()
 
 

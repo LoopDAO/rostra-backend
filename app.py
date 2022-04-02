@@ -257,7 +257,7 @@ class RuleAdd(Resource):
                         signature=signature,
                         action=data['action'],
                         nft=data['nft'],
-                        runnered=False)
+                        finished=False)
 
             rule.save()
             return {'rule_id': str(rule['id'])}, 201
