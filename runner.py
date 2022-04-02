@@ -7,7 +7,6 @@ from flask_apscheduler import APScheduler
 from isodate import parse_datetime
 
 from models import Rule, RunResult
-from rsa_verify import flashsigner_verify
 
 
 def method_runnert(a, b):
