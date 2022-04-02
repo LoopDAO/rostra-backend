@@ -329,7 +329,7 @@ runresult_fields = rostra_conf.model(
     })
 
 
-@rostra_conf.route('/runresult/add', methods=['POST'])
+@rostra_conf.route('/result/add', methods=['POST'])
 class RunresultAdd(Resource):
 
     @rostra_conf.doc(body=runresult_fields, responses={201: 'RunResult Created'})
@@ -350,7 +350,7 @@ class RunresultAdd(Resource):
         except Exception as e:
             return {'error': str(e)}, 500
 
-@rostra_conf.route('/runresult/refresh/<rule_id>', methods=['GET'])
+@rostra_conf.route('/result/refresh/<rule_id>', methods=['GET'])
 class RunresultRefreshByRuleIDGET(Resource):
     @rostra_conf.doc(params={'rule_id': 'rule_id'})
     @api.response(500, 'Internal Error')
@@ -367,7 +367,7 @@ class RunresultRefreshByRuleIDGET(Resource):
             return {'error': str(e)}, 500
 
 
-@rostra_conf.route('/runresult/refresh/', methods=['POST'])
+@rostra_conf.route('/result/refresh/', methods=['POST'])
 class RunresultRefreshByRuleID(Resource):
     @rostra_conf.doc(params={'rule_id': 'rule_id'})
     @api.response(500, 'Internal Error')
@@ -375,7 +375,7 @@ class RunresultRefreshByRuleID(Resource):
     def post(self):
         try:
             data = api.payload
-            print("/runresult/refresh/", data['rule_id'])
+            print("/result/refresh/", data['rule_id'])
             rule = Rule.objects(id=data['rule_id'])
             success = run_refresh_rule(rule[0])
             if success:
@@ -386,7 +386,7 @@ class RunresultRefreshByRuleID(Resource):
             return {'error': str(e)}, 500
 
 
-@rostra_conf.route('/runresult/<id>', methods=['GET'])
+@rostra_conf.route('/result/<id>', methods=['GET'])
 @rostra_conf.doc(params={'id': 'id'})
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
@@ -403,7 +403,7 @@ class RunresultGetByID(Resource):
             return {'error': str(e), 'errid': 'err-except'}, 500
 
 
-@rostra_conf.route('/runresult/get/walletaddr/<wallet_addr>', methods=['GET'])
+@rostra_conf.route('/result/get/walletaddr/<wallet_addr>', methods=['GET'])
 @rostra_conf.doc(params={'wallet_addr': 'wallet_addr'})
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
@@ -420,7 +420,7 @@ class RunresultGetByWallet(Resource):
             return {'error': str(e), 'errid': 'err-except'}, 500
 
 
-@rostra_conf.route('/runresult/ruleid/<rule_id>', methods=['GET'])
+@rostra_conf.route('/result/ruleid/<rule_id>', methods=['GET'])
 @rostra_conf.doc(params={'rule_id': 'rule_id'})
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
@@ -437,7 +437,7 @@ class RunresultRuleidGet(Resource):
             return {'error': str(e), 'errid': 'err-except'}, 500
 
 
-@rostra_conf.route('/runresult/get', methods=['GET'])
+@rostra_conf.route('/result/get', methods=['GET'])
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
 class RunresultGetAll(Resource):
@@ -453,7 +453,7 @@ class RunresultGetAll(Resource):
             return {'error': str(e), 'errid': 'err-except'}
 
 
-@rostra_conf.route('/runresult/delete', methods=['POST'])
+@rostra_conf.route('/result/delete', methods=['POST'])
 @rostra_conf.doc(params={'rule_id': 'Id of the rule', 'address': 'address of runner result'})
 class RunresultDelete(Resource):
 
