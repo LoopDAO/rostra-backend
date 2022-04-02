@@ -1,6 +1,6 @@
 from cgi import test
 import mongoengine as me
-from mongoengine import (StringField, ListField, ReferenceField, BooleanField)
+from mongoengine import (IntField, StringField, ListField, ReferenceField, BooleanField)
 
 
 class Guild(me.Document):
@@ -20,6 +20,9 @@ class Nft(me.Document):
     desc = StringField()
     image = StringField()
     cota_id = StringField()
+    # 1 - nft
+    # 2 - ticket
+    type = IntField()
 
 
 #---------------------------------------------------------------------------------
