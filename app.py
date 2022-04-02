@@ -1,6 +1,8 @@
 import json
+import logging
 import uuid
 
+from black import err
 from dotenv import load_dotenv
 from flask import Flask, abort, jsonify, make_response, request
 from flask_cors import CORS
@@ -166,7 +168,7 @@ class Add(Resource):
             print(data)
             # validation if the nft name already exists
             if len(Nft.objects(name=data['name'])) != 0:
-                return {'errror': 'The Rule Name Already Exists! Please change your rule name'}, 401
+                return ResponseInfo(401, 'The NFT Name Already Exists! Please change your nft name')
 
             nft = Nft(name=data['name'],
                       desc=data['desc'],
@@ -240,10 +242,10 @@ class RuleAdd(Resource):
 
             # validation if the rule name already exists
             if len(Rule.objects(name=data['name'])) != 0:
-                return {'errror': 'The Rule Name Already Exists! Please change your rule name'}, 401
+                return ResponseInfo(401, 'The Rule Name Already Exists! Please change your rule name')
             # validation signature
             if len(signature) == 0:
-                return {'errror': 'The signature is empty'}, 401
+                return ResponseInfo(401, 'The signature is empty')
 
             message = json.dumps(ruleInfo, separators=(',', ':'))
             if len(message) > 2:
@@ -262,6 +264,7 @@ class RuleAdd(Resource):
             rule.save()
             return {'rule_id': str(rule['id'])}, 201
         except Exception as e:
+            logging.error(e)
             return {'error': str(e)}, 500
 
 
@@ -341,7 +344,7 @@ class RunresultAdd(Resource):
             print(data)
 
             if len(RunResult.objects(rule_id=data['rule_id'])) != 0:
-                return {'errror': 'The RunResult Already Exists! '}, 401
+                return ResponseInfo(401, 'The RunResult Already Exists! ')
 
             runresult = RunResult(
                 rule_id=data['rule_id'], result=data['result'])
@@ -487,4 +490,11 @@ class RunresultDelete(Resource):
 # ==========================================================
 # 统一接口返回信息
 def ResponseInfo(error, message):
-    return {'error': error, 'message': message}, error
+    return {'message': message}, error
+
+
+def ResponseResult(error, result):
+    if(error == 200 or error == 201):
+        return {'result': result}, error
+    else:
+        return ResponseInfo(error, 'Error!')
