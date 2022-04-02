@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid
+from tkinter.messagebox import RETRY
 
 from black import err
 from dotenv import load_dotenv
@@ -363,9 +364,9 @@ class RunresultRefreshByRuleIDGET(Resource):
             rule = Rule.objects(id=rule_id)
             success = run_refresh_rule(rule[0])
             if success:
-                return {'message': 'RuleRunresultRefresh success'}, 201
+                return ResponseInfo(200, 'RuleRunresultRefresh success')
             else:
-                return {'message': 'fail'}, 401
+                return ResponseInfo(401, 'RuleRunresultRefresh failed')
         except Exception as e:
             return {'error': str(e)}, 500
 
