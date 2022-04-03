@@ -63,9 +63,11 @@ def run_refresh_rule(rule):
         rule.update(finished=True)
         addresses, success = run_github_discussions_ckb(rule.action.url)
         if success:
-            list = AddressList.objects.create(list=addresses)
-            RuleResult.objects.create(rule_id=str(
+            list = AddressList.objects.create(
+                result_id='1', list=addresses)
+            r = RuleResult.objects.create(rule_id=str(
                 rule.id), rule_name=rule.name, rule_creator=rule.creator, address_list_id=str(list.id))
+            list.update(result_id=str(r.id))
             return True
         else:
             logging.error("rull {}-{} runner fail".format(rule.id, rule.name))

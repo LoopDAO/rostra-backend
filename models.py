@@ -75,4 +75,5 @@ class RuleResult(me.Document):  # Runner运行后的结果
 
 
 class AddressList(me.Document):  # Runner运行后获得的address list
+    result_id = StringField()
     list = ListField(StringField())

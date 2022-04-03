@@ -479,6 +479,52 @@ class GetAddressList(Resource):
             return {'error': str(e), 'errid': 'err-except'}, 500
 
 
+@rostra_conf.route('/address_list/result_id/<result_id>', methods=['GET'])
+@rostra_conf.doc(params={'result_id': 'result_id'})
+@rostra_conf.doc(params={'page,per_page': '?page=1&per_page=10'})
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class GetAddressList(Resource):
+    def get(self, result_id):
+        try:
+            query = AddressList.objects(result_id=result_id)
+            count = len(query[0].list)
+            if query is not None and count != 0:
+                page = int(request.args.get('page', 1))  # 当前在第几页
+                page = 1 if page < 1 else page
+
+                per_page = int(request.args.get('per_page', 3))  # 每页几条数据
+                per_page = 10 if per_page < 1 else per_page
+
+                if count % per_page > 0:
+                    total_page = int(count/per_page + 1)
+                else:
+                    total_page = int(count/per_page)
+                if(page > total_page):
+                    return {"result": ''}, 200
+                return jsonify(query[0].list[(page-1)*per_page:page*per_page])
+
+            else:
+                return {"result": ''}, 200
+        except Exception as e:
+            return {'error': str(e), 'errid': 'err-except'}, 500
+
+
+@rostra_conf.route('/address_list/get/', methods=['GET'])
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class GetAddressList(Resource):
+    def get(self):
+        try:
+            query = AddressList.objects()
+            if query is not None:
+                return jsonify(query)
+
+            else:
+                return {"result": ''}, 200
+        except Exception as e:
+            logging.error(e)
+            return {'error': str(e), 'errid': 'err-except'}, 500
 
 
 @rostra_conf.route('/result/ruleid/<rule_id>', methods=['GET'])
