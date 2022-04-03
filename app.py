@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid
+from pprint import pprint
 from tkinter.messagebox import RETRY
 
 from black import err
@@ -10,7 +11,7 @@ from flask_cors import CORS
 from flask_mongoengine import MongoEngine
 from flask_restx import Api, Resource, fields
 
-from models import Guild, Nft, Rule, RunResult
+from models import AddressList, Guild, Nft, Rule, RuleResult
 from rsa_verify import flashsigner_verify
 from runner import run_refresh_rule, runner_start
 
@@ -344,10 +345,10 @@ class RunresultAdd(Resource):
             data = api.payload
             print(data)
 
-            if len(RunResult.objects(rule_id=data['rule_id'])) != 0:
+            if len(RuleResult.objects(rule_id=data['rule_id'])) != 0:
                 return ResponseInfo(401, 'The RunResult Already Exists! ')
 
-            runresult = RunResult(
+            runresult = RuleResult(
                 rule_id=data['rule_id'], result=data['result'])
             runresult.save()
             return {'id': str(runresult['id']), 'rule_id': runresult['rule_id']}, 201
@@ -398,7 +399,7 @@ class RunresultGetByID(Resource):
 
     def get(self, id):
         try:
-            query_by_runresult_id = RunResult.objects(id=id)
+            query_by_runresult_id = RuleResult.objects(id=id)
             if query_by_runresult_id is not None and len(query_by_runresult_id) != 0:
                 return jsonify({"result": query_by_runresult_id[0]})
             else:
@@ -415,13 +416,47 @@ class RunresultGetByWallet(Resource):
 
     def get(self, wallet_addr):
         try:
-            query = RunResult.objects(rule_creator=wallet_addr)
+            query = RuleResult.objects(rule_creator=wallet_addr)
             if query is not None and len(query) != 0:
                 return jsonify({"result": query})
             else:
                 return {"result": ''}, 200
         except Exception as e:
+            logging.error(e)
             return {'error': str(e), 'errid': 'err-except'}, 500
+
+
+@rostra_conf.route('/address_list/<id>', methods=['GET'])
+@rostra_conf.doc(params={'id': 'id'})
+@rostra_conf.doc(params={'page,per_page': '?page=1&per_page=10'})
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class GetAddressList(Resource):
+    def get(self, id):
+        try:
+            query = AddressList.objects(id=id)
+            count = len(query[0].list)
+            if query is not None and count != 0:
+                page = int(request.args.get('page', 1))  # 当前在第几页
+                page = 1 if page < 1 else page
+
+                per_page = int(request.args.get('per_page', 3))  # 每页几条数据
+                per_page = 10 if per_page < 1 else per_page
+
+                if count % per_page > 0:
+                    total_page = int(count/per_page + 1)
+                else:
+                    total_page = int(count/per_page)
+                if(page > total_page):
+                    return {"result": ''}, 200
+                return jsonify(query[0].list[(page-1)*per_page:page*per_page])
+
+            else:
+                return {"result": ''}, 200
+        except Exception as e:
+            return {'error': str(e), 'errid': 'err-except'}, 500
+
+
 
 
 @rostra_conf.route('/result/ruleid/<rule_id>', methods=['GET'])
@@ -432,7 +467,7 @@ class RunresultRuleidGet(Resource):
 
     def get(self, rule_id):
         try:
-            query_by_rule_id = RunResult.objects(rule_id=rule_id)
+            query_by_rule_id = RuleResult.objects(rule_id=rule_id)
             if query_by_rule_id is not None and len(query_by_rule_id) != 0:
                 return jsonify({"result": query_by_rule_id[0]})
             else:
@@ -448,7 +483,7 @@ class RunresultGetAll(Resource):
 
     def get(self):
         try:
-            query = RunResult.objects()
+            query = RuleResult.objects()
             if query is not None and len(query) != 0:
                 return jsonify({"result": query})
             else:
@@ -470,20 +505,26 @@ class RunresultDelete(Resource):
             rule_id = data['rule_id']
             address = data['address']
 
-            query_by_rule_id = RunResult.objects(rule_id=rule_id)
+            query = RuleResult.objects(rule_id=rule_id)
 
-            if query_by_rule_id is not None and len(query_by_rule_id) != 0:
-                result = jsonify(query_by_rule_id[0]['result']).json
-                if (address in result):
-                    result.remove(address)
-                    query_by_rule_id.update(result=result)
-                    return {'delete': address}, 201
-                else:
-                    return {'error': 'Address Not Found!'}, 401
+            if query is not None and len(query) != 0:
+                id = query[0].address_list_id
+                query2 = AddressList.objects(id=id)
+                if query2 is not None:
+                    address_list = jsonify(
+                        query2[0]['list']).json  # query2[0].list
+                    if address in address_list:
+                        address_list.remove(address)
+
+                        query2.update_one(list=address_list)
+                        return ResponseInfo(201, 'Address:{} Deleted success!'.format(address))
+                    else:
+                        return ResponseInfo(401, 'Address:{} not in list'.format(address))
             else:
                 return {"error": 'The Result cannot be found'}, 401
 
         except Exception as e:
+            logging.error(e)
             return {'error': str(e)}, 500
 
 

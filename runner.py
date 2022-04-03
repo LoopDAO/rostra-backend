@@ -6,7 +6,7 @@ import requests
 from flask_apscheduler import APScheduler
 from isodate import parse_datetime
 
-from models import Rule, RunResult
+from models import AddressList, Rule, RuleResult
 
 
 def method_runnert(a, b):
@@ -31,7 +31,7 @@ def runner_start(app):
     scheduler.start()
 
 
-#===============================================
+# ===============================================
 def find_string_withend(text, end_str):
     i = text.find(end_str)
     if i == -1:
@@ -57,13 +57,15 @@ def pick_ckb_address(text):
         return (start)
 
 
-#跳过规则检查,直接执行rule
+# 跳过规则检查,直接执行rule
 def run_refresh_rule(rule):
     try:
         rule.update(finished=True)
         addresses, success = run_github_discussions_ckb(rule.action.url)
         if success:
-            RunResult.objects.create(rule_id=str(rule.id), rule_name=rule.name, rule_creator=rule.creator, result=addresses)
+            list = AddressList.objects.create(list=addresses)
+            RuleResult.objects.create(rule_id=str(
+                rule.id), rule_name=rule.name, rule_creator=rule.creator, address_list_id=str(list.id))
             return True
         else:
             logging.error("rull {}-{} runner fail".format(rule.id, rule.name))
@@ -73,10 +75,12 @@ def run_refresh_rule(rule):
         rule.update(finished=False)
         return False
 
-#检查是否在时间范围内且到结束日期当日（精确到‘日’）
+# 检查是否在时间范围内且到结束日期当日（精确到‘日’）
+
+
 def is_to_time(rule):
     try:
-        #2022-03-28T03:34:24.467Z
+        # 2022-03-28T03:34:24.467Z
         start_date = parse_datetime(rule.action.start_time)
         start_date = start_date.date()
 
@@ -95,24 +99,16 @@ def is_to_time(rule):
 
 
 def scan_rule_list():
-    #未添加时间及类型检查
+    # 未添加时间及类型检查
     rules = Rule.objects(finished=False)
     for rule in rules:
         if is_to_time(rule) == False:
-            logging.info("rule {}-{} is not to time".format(rule.id, rule.name))
+            logging.info(
+                "rule {}-{} is not to time".format(rule.id, rule.name))
             continue
         rule.finished = True
         rule.save()
-        try:
-            addresses, success = run_github_discussions_ckb(rule.action.url)
-            if success:
-                RunResult.objects.create(rule_id=str(rule.id), rule_name=rule.name, rule_creator=rule.creator, result=addresses)
-            else:
-                logging.error("rule {}-{} runner fail".format(rule.id, rule.name))
-        except Exception as e:
-            logging.error(e)
-            rule.finished = False
-            rule.save()
+        run_refresh_rule(rule)
 
 
 def post_github_graphql(input):
@@ -130,12 +126,15 @@ def post_github_graphql(input):
         }
         }"""
 
-    headers = {'Content-Type': 'application/json', 'Authorization': 'bearer ' + str(os.environ.get("GITHUB_GRAPHQL_APIKEY"))}
-    request = requests.post('https://api.github.com/graphql', json={'query': query}, headers=headers)
+    headers = {'Content-Type': 'application/json',
+               'Authorization': 'bearer ' + str(os.environ.get("GITHUB_GRAPHQL_APIKEY"))}
+    request = requests.post('https://api.github.com/graphql',
+                            json={'query': query}, headers=headers)
     if request.status_code == 200:
         return request.json(), 0
     else:
-        logging.error("Query failed to run by returning code of {}. {}\n{}".format(request.status_code, request.reason, query))
+        logging.error("Query failed to run by returning code of {}. {}\n{}".format(
+            request.status_code, request.reason, query))
         return None, -1
 
 
@@ -156,7 +155,8 @@ def run_github_discussions_ckb(url):
 
         result, err = post_github_graphql(input)  # Execute the query
         if err == -1:
-            logging.error("Query failed to run by returning code of {}. {}".format(err, result))
+            logging.error(
+                "Query failed to run by returning code of {}. {}".format(err, result))
             return None, False
         remaining_rate_limit = result["data"]["repository"]["discussion"]['comments']['edges']
 

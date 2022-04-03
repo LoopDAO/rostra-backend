@@ -1,6 +1,7 @@
 from cgi import test
+
 import mongoengine as me
-from mongoengine import (StringField, ListField, ReferenceField, BooleanField)
+from mongoengine import BooleanField, ListField, ReferenceField, StringField
 
 
 class Guild(me.Document):
@@ -39,6 +40,7 @@ class RuleAction(me.EmbeddedDocument):
     def __repr__(self):
         return "%s , %s , %s , %s\n " % (self.type, self.url, self.action, self.start_time)
 
+
 class Rule(me.Document):
     rule_id = StringField()
     name = StringField()
@@ -59,10 +61,18 @@ class Rule(me.Document):
 class RunnerCondition(me.Document):
     address = StringField()
 
+#Runner运行后的结果
 
-class RunResult(me.Document):
+
+class RuleResult(me.Document):
     rule_id = StringField()
     rule_name = StringField()
     rule_creator = StringField()
-    #result = ReferenceField(RunnerCondition)
-    result = ListField(StringField())
+    # address_list_id ->> _id of address list (AddressList)
+    address_list_id = StringField()
+
+#Runner运行后获得的address list
+
+
+class AddressList(me.Document):
+    list = ListField(StringField())
