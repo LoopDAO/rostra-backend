@@ -154,7 +154,8 @@ nft_model = rostra_conf.model(
         'name': fields.String(required=True, description='The nft name'),
         "desc": fields.String,
         "image": fields.String(required=True, description='The image url of nft'),
-        "cota_id": fields.String(required=True, description='The cota id of the nft')
+        "cota_id": fields.String(required=True, description='The cota id of the nft'),
+        "type": fields.Integer(required=True, description='The type of the nft, 1 - nft, 2- ticket')
     })
 
 
@@ -172,10 +173,23 @@ class Add(Resource):
             if len(Nft.objects(name=data['name'])) != 0:
                 return ResponseInfo(401, 'The NFT Name Already Exists! Please change your nft name')
 
+            cotaId = data['cota_id']
+
+            # validation if the nft cota id already exists
+            if len(Guild.objects(name=cotaId)) != 0:
+                return {'message': 'The Cota ID Already Exists! Cota ID should be only to one nft! Please Check!'}, 401
+
+            if len(cotaId) != 42:
+                return {'message': 'The Cota ID should be of length 42!'}, 401
+
+            if not cotaId.startswith('0x'):
+                return {'message': 'The Cota ID should start with 0x!'}, 401
+
             nft = Nft(name=data['name'],
                       desc=data['desc'],
                       image=data['image'],
-                      cota_id=data['cota_id'])
+                      cota_id=data['cota_id'],
+                      type=data['type'])
             nft.save()
             return {'message': 'SUCCESS'}, 201
         except Exception as e:
@@ -187,7 +201,7 @@ class Add(Resource):
 @api.response(500, 'Internal Error')
 class Get(Resource):
     def get(self):
-        nfts = Nft.objects()
+        nfts = Nft.objects(type=1)
         return jsonify({"result": nfts})
 
 
@@ -207,6 +221,14 @@ class Get(Resource):
         except Exception as e:
             return {'error': str(e)}
 
+
+@rostra_conf.route('/ticket/get/', methods=['GET'])
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class Get(Resource):
+    def get(self):
+        tickets = Nft.objects(type=2)
+        return jsonify({"result": tickets})
 
 # ==========================================================
 # rule start

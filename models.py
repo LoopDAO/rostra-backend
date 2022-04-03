@@ -1,7 +1,8 @@
 from cgi import test
 
 import mongoengine as me
-from mongoengine import BooleanField, ListField, ReferenceField, StringField
+from mongoengine import (BooleanField, IntField, ListField, ReferenceField,
+                         StringField)
 
 
 class Guild(me.Document):
@@ -21,6 +22,9 @@ class Nft(me.Document):
     desc = StringField()
     image = StringField()
     cota_id = StringField()
+    # 1 - nft
+    # 2 - ticket
+    type = IntField()
 
 
 #---------------------------------------------------------------------------------
@@ -61,18 +65,14 @@ class Rule(me.Document):
 class RunnerCondition(me.Document):
     address = StringField()
 
-#Runner运行后的结果
 
-
-class RuleResult(me.Document):
+class RuleResult(me.Document):  # Runner运行后的结果
     rule_id = StringField()
     rule_name = StringField()
     rule_creator = StringField()
     # address_list_id ->> _id of address list (AddressList)
     address_list_id = StringField()
 
-#Runner运行后获得的address list
 
-
-class AddressList(me.Document):
+class AddressList(me.Document):  # Runner运行后获得的address list
     list = ListField(StringField())
