@@ -1,8 +1,12 @@
 import datetime
+import json
 import logging
 import os
+import re
+from keyword import iskeyword
 
 import requests
+from flask import jsonify
 from flask_apscheduler import APScheduler
 from isodate import parse_datetime
 
@@ -57,20 +61,39 @@ def pick_ckb_address(text):
         return (start)
 
 
-# 跳过规则检查,直接执行rule
+# 跳过finished检查,直接执行rule
 def run_refresh_rule(rule):
     try:
-        rule.update(finished=True)
-        addresses, success = run_github_discussions_ckb(rule.action.url)
-        if success:
-            list = AddressList.objects.create(
-                result_id='1', list=addresses)
-            r = RuleResult.objects.create(rule_id=str(
-                rule.id), rule_name=rule.name, rule_creator=rule.creator, address_list_id=str(list.id))
-            list.update(result_id=str(r.id))
-            return True
+        if(rule.action.type != 'discussion'):
+            logging.error("rule {}-{} is not discussion".format(rule.id, rule.name))
+            return False
+        
+        isNervos = False
+        keyword=None
+        act = json.loads(rule.action.to_json())
+        for condition in act['condition']:
+            
+            if('with'in condition and condition['of'].lower() =='nervos' and condition['with'].lower() =='address'):
+                isNervos = True
+                continue
+            if('with' in condition and condition['with'].lower() =='keyword'):
+                keyword = condition['of']
+        
+        if(isNervos):
+            rule.update(finished=True)
+            addresses, success = run_github_discussions_ckb(rule.action,keyword)
+            if success:
+                list = AddressList.objects.create(
+                    result_id='1', list=addresses)
+                r = RuleResult.objects.create(rule_id=str(
+                    rule.id), rule_name=rule.name, rule_creator=rule.creator, address_list_id=str(list.id))
+                list.update(result_id=str(r.id))
+                return True
+            else:
+                logging.error("rull {}-{} runner fail".format(rule.id, rule.name))
+                return False
         else:
-            logging.error("rull {}-{} runner fail".format(rule.id, rule.name))
+            logging.error("rull unsupport")
             return False
     except Exception as e:
         logging.error(e)
@@ -139,22 +162,32 @@ def post_github_graphql(input):
             request.status_code, request.reason, query))
         return None, -1
 
-
-def run_github_discussions_ckb(url):
+def run_github_discussions_ckb(action,keyword):
     # 'https://github.com/rebase-network/hello-world/discussions/8'
     try:
         github_host = 'https://github.com/'
-        github = url.find(github_host)
+        github = action.url.find(github_host)
         if (github == -1):
             logging.error('no github url')
             return None, False
-        url = url[github + len(github_host):]
+        url = action.url[github + len(github_host):]
         input = url.split('/')
+        print("url:", input)
+        #action check
+        if(len(input) != 4):
+            logging.error('url format error, url: {}'.format(url))
+            return None, False
+        if(action.type !='discussion' or input[2] != 'discussions'):
+            logging.error('url format error, not discussions')
+            return None, False
+        if(input[3] == ''):
+            logging.error('url format error, no number')
+            return None, False
+        
         if (len(input) != 4 or input[2] != 'discussions'):
             logging.error('url format error')
             return None, False
-        print("url:", input)
-
+        
         result, err = post_github_graphql(input)  # Execute the query
         if err == -1:
             logging.error(
@@ -164,10 +197,16 @@ def run_github_discussions_ckb(url):
 
         addresses = []
         for (i, comment) in enumerate(remaining_rate_limit):
-            address = pick_ckb_address(comment['node']['bodyText'])
+            bodyText = comment['node']['bodyText']
+            if(keyword != None ):
+                k = re.search(keyword, bodyText, re.IGNORECASE)
+                if(k == None):
+                    continue
+            address = pick_ckb_address(bodyText)
             if address is not None:
                 print("Found address: {}".format(address))
                 addresses.append(address)
+                
         if len(addresses) == 0:
             print("No address found")
             return None, False
