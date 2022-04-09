@@ -1,8 +1,10 @@
 import json
 import logging
+import os
 import uuid
+from email import message
 from pprint import pprint
-from tkinter.messagebox import RETRY
+from telnetlib import PRAGMA_HEARTBEAT
 
 from black import err
 from dotenv import load_dotenv
@@ -10,20 +12,19 @@ from flask import Flask, abort, jsonify, make_response, request
 from flask_cors import CORS
 from flask_mongoengine import MongoEngine
 from flask_restx import Api, Resource, fields
+from github import Github
 
-from models import AddressList, Guild, Nft, Rule, RuleResult
+from models import AddressList, GithubCommit, Guild, Nft, Rule, RuleResult
 from rsa_verify import flashsigner_verify
 from runner import run_refresh_rule, runner_start
 
 app = Flask(__name__)
 
-app.config['MONGODB_SETTINGS'] = {
-    'db': 'guild', 'host': 'localhost', 'port': 27017}
+app.config['MONGODB_SETTINGS'] = {'db': 'guild', 'host': 'localhost', 'port': 27017}
 
 db = MongoEngine()
 db.init_app(app)
-api = Api(app, version='1.0', title='Rostra Backend API',
-          description='Rostra Backend Restful API')
+api = Api(app, version='1.0', title='Rostra Backend API', description='Rostra Backend Restful API')
 rostra_conf = api.namespace('', description='Rostra APIs')
 
 load_dotenv()
@@ -68,6 +69,7 @@ class Get(Resource):
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
 class Get(Resource):
+
     def get(self, ipfsAddr):
         try:
             query_by_ipfsAddr = Guild.objects(ipfsAddr=ipfsAddr)
@@ -98,8 +100,7 @@ class Add(Resource):
     @api.response(401, 'Validation Error')
     def post(self):
         data = api.payload
-        guildInfo = {"name": data["name"], "desc": data["desc"],
-                     "creator": data["creator"], "ipfsAddr": data["ipfsAddr"]},
+        guildInfo = {"name": data["name"], "desc": data["desc"], "creator": data["creator"], "ipfsAddr": data["ipfsAddr"]},
 
         signature = data['signature']
 
@@ -185,11 +186,7 @@ class Add(Resource):
             if not cotaId.startswith('0x'):
                 return {'message': 'The Cota ID should start with 0x!'}, 401
 
-            nft = Nft(name=data['name'],
-                      desc=data['desc'],
-                      image=data['image'],
-                      cota_id=data['cota_id'],
-                      type=data['type'])
+            nft = Nft(name=data['name'], desc=data['desc'], image=data['image'], cota_id=data['cota_id'], type=data['type'])
             nft.save()
             return {'message': 'SUCCESS'}, 201
         except Exception as e:
@@ -200,6 +197,7 @@ class Add(Resource):
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
 class Get(Resource):
+
     def get(self):
         nfts = Nft.objects(type=1)
         return jsonify({"result": nfts})
@@ -210,6 +208,7 @@ class Get(Resource):
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
 class Get(Resource):
+
     def get(self, cotaId):
         try:
             query_by_cotaId = Nft.objects(cota_id=cotaId)
@@ -226,9 +225,11 @@ class Get(Resource):
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
 class Get(Resource):
+
     def get(self):
         tickets = Nft.objects(type=2)
         return jsonify({"result": tickets})
+
 
 # ==========================================================
 # rule start
@@ -370,15 +371,16 @@ class RunresultAdd(Resource):
             if len(RuleResult.objects(rule_id=data['rule_id'])) != 0:
                 return ResponseInfo(401, 'The RunResult Already Exists! ')
 
-            runresult = RuleResult(
-                rule_id=data['rule_id'], result=data['result'])
+            runresult = RuleResult(rule_id=data['rule_id'], result=data['result'])
             runresult.save()
             return {'id': str(runresult['id']), 'rule_id': runresult['rule_id']}, 201
         except Exception as e:
             return {'error': str(e)}, 500
 
+
 @rostra_conf.route('/result/refresh/<rule_id>', methods=['GET'])
 class RunresultRefreshByRuleIDGET(Resource):
+
     @rostra_conf.doc(params={'rule_id': 'rule_id'})
     @api.response(500, 'Internal Error')
     @api.response(401, 'Validation Error')
@@ -396,6 +398,7 @@ class RunresultRefreshByRuleIDGET(Resource):
 
 @rostra_conf.route('/result/refresh/', methods=['POST'])
 class RunresultRefreshByRuleID(Resource):
+
     @rostra_conf.doc(params={'rule_id': 'rule_id'})
     @api.response(500, 'Internal Error')
     @api.response(401, 'Validation Error')
@@ -454,6 +457,7 @@ class RunresultGetByWallet(Resource):
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
 class GetAddressList(Resource):
+
     def get(self, id):
         try:
             query = AddressList.objects(id=id)
@@ -466,12 +470,12 @@ class GetAddressList(Resource):
                 per_page = 10 if per_page < 1 else per_page
 
                 if count % per_page > 0:
-                    total_page = int(count/per_page + 1)
+                    total_page = int(count / per_page + 1)
                 else:
-                    total_page = int(count/per_page)
-                if(page > total_page):
+                    total_page = int(count / per_page)
+                if (page > total_page):
                     return {"result": ''}, 200
-                return jsonify(query[0].list[(page-1)*per_page:page*per_page])
+                return jsonify(query[0].list[(page - 1) * per_page:page * per_page])
 
             else:
                 return {"result": ''}, 200
@@ -485,6 +489,7 @@ class GetAddressList(Resource):
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
 class GetAddressList(Resource):
+
     def get(self, result_id):
         try:
             query = AddressList.objects(result_id=result_id)
@@ -497,12 +502,12 @@ class GetAddressList(Resource):
                 per_page = 10 if per_page < 1 else per_page
 
                 if count % per_page > 0:
-                    total_page = int(count/per_page + 1)
+                    total_page = int(count / per_page + 1)
                 else:
-                    total_page = int(count/per_page)
-                if(page > total_page):
+                    total_page = int(count / per_page)
+                if (page > total_page):
                     return {"result": ''}, 200
-                return jsonify(query[0].list[(page-1)*per_page:page*per_page])
+                return jsonify(query[0].list[(page - 1) * per_page:page * per_page])
 
             else:
                 return {"result": ''}, 200
@@ -514,6 +519,7 @@ class GetAddressList(Resource):
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
 class GetAddressList(Resource):
+
     def get(self):
         try:
             query = AddressList.objects()
@@ -579,8 +585,7 @@ class RunresultDelete(Resource):
                 id = query[0].address_list_id
                 query2 = AddressList.objects(id=id)
                 if query2 is not None:
-                    address_list = jsonify(
-                        query2[0]['list']).json  # query2[0].list
+                    address_list = jsonify(query2[0]['list']).json  # query2[0].list
                     if address in address_list:
                         address_list.remove(address)
 
@@ -596,6 +601,43 @@ class RunresultDelete(Resource):
             return {'error': str(e)}, 500
 
 
+@rostra_conf.route('/github/getcommits/', methods=['POST'])
+@rostra_conf.doc(params={'reponame': 'reponame name. e.g. "rebase-network/rostra-app"'})
+class GithubGetCommits(Resource):
+
+    @api.response(201, 'Address Deleted')
+    @api.response(500, 'Internal Error')
+    @api.response(401, 'Validation Error')
+    def post(self):
+        try:
+            data = api.payload
+            gh = Github(base_url="https://api.github.com", login_or_token=str(os.environ.get("GITHUB_GRAPHQL_APIKEY")))
+            repo = gh.get_repo(data['reponame'])
+            #repo = gh.get_repo("rebase-network/rostra-backend")
+
+            results = []
+            commits = repo.get_commits()
+            for index, commit in enumerate(commits):
+                # print(commit.commit.message)
+                # print(commit.commit.author.name)
+                # print(commit.commit.author.email)
+                # print(commit.commit.author.date)
+                # print(commit.sha)
+                # print(commit.commit._identity)
+                c = GithubCommit(message=commit.commit.message,
+                                 sha=commit.sha,
+                                 author=commit.commit.author.name,
+                                 email=commit.commit.author.email,
+                                 date=commit.commit.author.date)
+                results.append(c)
+                if (index >= 9):
+                    break
+            return jsonify({"result": results})
+        except Exception as e:
+            logging.error(e)
+            return {'error': str(e)}, 500
+
+
 # Runner end
 # ==========================================================
 # 统一接口返回信息
@@ -604,7 +646,7 @@ def ResponseInfo(error, message):
 
 
 def ResponseResult(error, result):
-    if(error == 200 or error == 201):
+    if (error == 200 or error == 201):
         return {'result': result}, error
     else:
         return ResponseInfo(error, 'Error!')

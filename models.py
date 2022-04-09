@@ -1,4 +1,6 @@
+import email
 from cgi import test
+from unicodedata import name
 
 import mongoengine as me
 from mongoengine import (BooleanField, IntField, ListField, ReferenceField,
@@ -77,3 +79,10 @@ class RuleResult(me.Document):  # Runner运行后的结果
 class AddressList(me.Document):  # Runner运行后获得的address list
     result_id = StringField()
     list = ListField(StringField())
+#---------------------------------------------------------------------------------
+class GithubCommit(me.Document):
+    message=StringField()
+    sha=StringField()
+    author=StringField()
+    email=StringField()
+    date=StringField()

@@ -1,5 +1,5 @@
 black==22.3.0
-Flask==2.0.2
+flask==2.1.1
 Flask_APScheduler==1.12.3
 Flask_Cors==3.0.10
 flask_mongoengine==1.0.0
@@ -9,3 +9,4 @@ mongoengine==0.23.1
 python-dotenv==0.20.0
 requests==2.26.0
 rsa==4.8
+PyGithub==1.55

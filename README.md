@@ -10,8 +10,6 @@ Use flask to provide restful api  for rostra app
     
     pip3 install -r requirements.txt
 
-
-
 ## Start 
 
     flask run
