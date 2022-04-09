@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import os
@@ -601,8 +602,14 @@ class RunresultDelete(Resource):
             return {'error': str(e)}, 500
 
 
+commit_fields = rostra_conf.model(
+    'request', {
+        'reponame': fields.String(required=True, description='reponame name. e.g. "rebase-network/rostra-app"'),
+    })
+
+
 @rostra_conf.route('/github/getcommits/', methods=['POST'])
-@rostra_conf.doc(params={'reponame': 'reponame name. e.g. "rebase-network/rostra-app"'})
+@rostra_conf.doc(body=commit_fields, responses={201: 'Success'})
 class GithubGetCommits(Resource):
 
     @api.response(201, 'Address Deleted')
@@ -624,12 +631,12 @@ class GithubGetCommits(Resource):
                 # print(commit.commit.author.date)
                 # print(commit.sha)
                 # print(commit.commit._identity)
-                c = GithubCommit(message=commit.commit.message,
+                results.append(
+                    GithubCommit(message=commit.commit.message,
                                  sha=commit.sha,
                                  author=commit.commit.author.name,
                                  email=commit.commit.author.email,
-                                 date=commit.commit.author.date)
-                results.append(c)
+                                 date=commit.commit.author.date.timestamp()))
                 if (index >= 9):
                     break
             return jsonify({"result": results})
