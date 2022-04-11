@@ -4,6 +4,7 @@ import logging
 import os
 import uuid
 from email import message
+from mimetypes import init
 from pprint import pprint
 from telnetlib import PRAGMA_HEARTBEAT
 
@@ -15,7 +16,9 @@ from flask_mongoengine import MongoEngine
 from flask_restx import Api, Resource, fields
 from github import Github
 
-from models import AddressList, GithubCommit, Guild, Nft, Rule, RuleResult
+from github_graphql import post_github_graphql_commits
+from github_pygithub import get_github_repo_commits, get_github_repo_stars
+from models import AddressList, Guild, Nft, Rule, RuleResult
 from rsa_verify import flashsigner_verify
 from runner import run_refresh_rule, runner_start
 
@@ -600,16 +603,19 @@ class RunresultDelete(Resource):
         except Exception as e:
             logging.error(e)
             return {'error': str(e)}, 500
+# Runner end
+# ==========================================================
 
-
-commit_fields = rostra_conf.model(
+github_commit_fields = rostra_conf.model(
     'request', {
         'reponame': fields.String(required=True, description='reponame name. e.g. "rebase-network/rostra-app"'),
+        'page': fields.Integer(required=False,min=1, description='page number. e.g. 1'),
+        'per_page': fields.Integer(required=False, min=10,description='per_page number. e.g. 10'),
     })
 
 
 @rostra_conf.route('/github/getcommits/', methods=['POST'])
-@rostra_conf.doc(body=commit_fields, responses={201: 'Success'})
+@rostra_conf.doc(body=github_commit_fields, responses={201: 'Success'})
 class GithubGetCommits(Resource):
 
     @api.response(201, 'Address Deleted')
@@ -617,35 +623,47 @@ class GithubGetCommits(Resource):
     @api.response(401, 'Validation Error')
     def post(self):
         try:
+            #json = post_github_graphql_commits('rebase-network/rostra-backend')
+            #return jsonify(json)
             data = api.payload
-            gh = Github(base_url="https://api.github.com", login_or_token=str(os.environ.get("GITHUB_GRAPHQL_APIKEY")))
-            repo = gh.get_repo(data['reponame'])
-            #repo = gh.get_repo("rebase-network/rostra-backend")
+            page = 1 if('page' not in data) else int(data['page'])
+            per_page = 10 if('per_page' not in data) else  int(data['per_page'])
+            
+            if(page >=1):
+                commits = get_github_repo_commits(data['reponame'],page,per_page)
+            else:
+                commits=[]
+            return jsonify({"result": commits})
+        except Exception as e:
+            logging.error(e)
+            return {'error': str(e)}, 500
+github_stars_fields = rostra_conf.model(
+    'request', {
+        'reponame': fields.String(required=True, description='reponame name. e.g. "rebase-network/rostra-app"'),
+        'page': fields.Integer(required=False,min=1, description='page number. e.g. 1,page=0 means not who_starred'),
+        'per_page': fields.Integer(required=False, min=10,description='per_page number. e.g. 10'),
+    })
 
-            results = []
-            commits = repo.get_commits()
-            for index, commit in enumerate(commits):
-                # print(commit.commit.message)
-                # print(commit.commit.author.name)
-                # print(commit.commit.author.email)
-                # print(commit.commit.author.date)
-                # print(commit.sha)
-                # print(commit.commit._identity)
-                results.append(
-                    GithubCommit(message=commit.commit.message,
-                                 sha=commit.sha,
-                                 author=commit.commit.author.name,
-                                 email=commit.commit.author.email,
-                                 date=commit.commit.author.date.timestamp()))
-                if (index >= 9):
-                    break
-            return jsonify({"result": results})
+@rostra_conf.route('/github/getstars/', methods=['POST'])
+@rostra_conf.doc(body=github_stars_fields, responses={201: 'Success'})
+class GithubGetStars(Resource):
+
+    @api.response(201, 'Address Deleted')
+    @api.response(500, 'Internal Error')
+    @api.response(401, 'Validation Error')
+    def post(self):
+        try:
+            data = api.payload
+            
+            page = 1 if('page' not in data) else int(data['page'])
+            per_page = 10 if('per_page' not in data) else  int(data['per_page'])
+            
+            commits = get_github_repo_stars(data['reponame'],page,per_page)
+            return jsonify({"result": commits})
         except Exception as e:
             logging.error(e)
             return {'error': str(e)}, 500
 
-
-# Runner end
 # ==========================================================
 # 统一接口返回信息
 def ResponseInfo(error, message):

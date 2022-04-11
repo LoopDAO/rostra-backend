@@ -3,8 +3,9 @@ from cgi import test
 from unicodedata import name
 
 import mongoengine as me
-from mongoengine import (BooleanField, IntField, ListField, ReferenceField,
-                         StringField)
+from mongoengine import (BooleanField, DateTimeField, IntField, ListField,
+                         LongField, ReferenceField, StringField)
+from rsa import PublicKey
 
 
 class Guild(me.Document):
@@ -86,3 +87,12 @@ class GithubCommit(me.Document):
     author=StringField()
     email=StringField()
     date=StringField()
+    login=StringField()
+    PublicKey=StringField()
+class GithubPeopel(me.Document):
+    name=StringField()
+    email=StringField()
+    login=StringField()
+    PublicKey=StringField()
+    starred_at=StringField()
+    node_id=StringField()
