@@ -1,9 +1,9 @@
-import datetime
 import json
 import logging
 import os
 import time
 import uuid
+from datetime import datetime, timezone
 from email import message
 from mimetypes import init
 from pprint import pprint
@@ -262,30 +262,14 @@ class RuleAdd(Resource):
         try:
             data = api.payload
 
-            signature = data['signature']
-            timestamp=int(data['timestamp'])
-            time_s = datetime.datetime.fromtimestamp(timestamp/1000.0)
-            print(time_s)
+            message,err = request_sign_verify(data)
+            if(err!=200):
+                return message,err
             
-            now = datetime.datetime.utcnow()
-            if(now - time_s).total_seconds() > 5*60:
-                return {'message': 'The timestamp is too old!'}, 401
-            if(now - time_s).total_seconds() < -5*60:
-                return {'message': 'The timestamp is too new!'}, 401
-
             # validation if the rule name already exists
             if len(Rule.objects(name=data['name'])) != 0:
                 return ResponseInfo(401, 'The Rule Name Already Exists! Please change your rule name')
-            # validation signature
-            if len(signature) == 0:
-                return ResponseInfo(401, 'The signature is empty')
 
-            message = str(timestamp)
-            if len(message) > 2:
-                message = message[1:-1]
-            result = flashsigner_verify(message=message, signature=signature)
-            if result == False:
-                return ResponseInfo(401,'The signature is error') 
             rule = Rule(name=data['name'],
                         desc=data['desc'],
                         creator=data['creator'],
@@ -573,7 +557,28 @@ class RunresultGetAll(Resource):
         except Exception as e:
             return {'error': str(e), 'errid': 'err-except'}
 
+#API请求包flashsinger签名验证，要求签名信息在时间戳指定时间内有效(默认为5分钟)
+def request_sign_verify(data):
+    signature = data['signature']
+    timestamp=int(data['timestamp'])
+    time_s = datetime.fromtimestamp(timestamp/1000.0)
+    
+    utc_dt = datetime.now(timezone.utc) # UTC time
+    now = utc_dt.astimezone() # local time
+    now = datetime.fromtimestamp(now.timestamp())
+   
+    if(now - time_s).total_seconds() > 5*60:
+        return {'message': 'The timestamp is too old!'}, 401
+    if(now - time_s).total_seconds() < -5*60:
+        return {'message': 'The timestamp is too new!'}, 401
 
+    if len(signature) == 0:
+        return ResponseInfo(401, 'The signature is empty')
+
+    result = flashsigner_verify(message=str(timestamp), signature=signature)
+    if result == False:
+        return ResponseInfo(401,'The signature is error') 
+    return ResponseInfo(200,'sign verify success')
 @rostra_conf.route('/result/delete', methods=['POST'])
 @rostra_conf.doc(params={'rule_id': 'Id of the rule', 'address': 'address of runner result'})
 class RunresultDelete(Resource):
@@ -584,6 +589,10 @@ class RunresultDelete(Resource):
     def post(self):
         try:
             data = api.payload
+            message,err = request_sign_verify(data)
+            if(err!=200):
+                return message,err
+            
             rule_id = data['rule_id']
             address = data['address']
 
