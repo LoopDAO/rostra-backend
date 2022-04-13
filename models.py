@@ -1,5 +1,6 @@
 import email
 from cgi import test
+from sqlite3 import Timestamp
 from unicodedata import name
 
 import mongoengine as me
@@ -58,6 +59,7 @@ class Rule(me.Document):
     action = me.EmbeddedDocumentField(RuleAction)
     nft = StringField()
     finished = BooleanField()
+    timestamp=StringField()
 
     def __repr__(self):
         return "%s , %s , %s , %s\n " % (self.id, self.name, self.desc, self.creator)

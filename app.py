@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from email import message
 from mimetypes import init
 from pprint import pprint
+from sqlite3 import Timestamp
 from telnetlib import PRAGMA_HEARTBEAT
 
 from black import err
@@ -240,11 +241,11 @@ class Get(Resource):
 rule_fields = rostra_conf.model(
     'rule', {
         'name': fields.String(required=True, description='The rule name identifier'),
-        "desc": fields.String,
-        "creator": fields.String,
+        "desc": fields.String(required=True, description='The rule description'),
+        "creator": fields.String(required=True, description='The creator of the rule'),
         "ipfsAddr": fields.String(required=True, description='The ipfs address of the rule'),
         "signature": fields.String(requerd=True, description='The signature of the rule'),
-        "timestamp": fields.Integer(required=True, description='The milliseconds timestamp of the rule'),
+        "timestamp": fields.Integer(required=True, description='The milliseconds timestamp of the request'),
         "action": fields.List(fields.String, required=True, description='The action info of the rule'),
         "nft": fields.List(fields.String, required=True, description='The nft info of the rule')
     })
@@ -273,7 +274,8 @@ class RuleAdd(Resource):
             rule = Rule(name=data['name'],
                         desc=data['desc'],
                         creator=data['creator'],
-                        signature=signature,
+                        signature=data['signature'],
+                        timestamp=str(data['timestamp']),
                         action=data['action'],
                         nft=data['nft'],
                         finished=False)
@@ -579,8 +581,16 @@ def request_sign_verify(data):
     if result == False:
         return ResponseInfo(401,'The signature is error') 
     return ResponseInfo(200,'sign verify success')
+
+result_del_fields = rostra_conf.model(
+    'result_delete', {
+        "rule_id": fields.String(description='rule_id'),
+        "address": fields.String(description='address'),
+        "signature": fields.String(requerd=True, description='The signature of the request'),
+        "timestamp": fields.Integer(required=True, description='The milliseconds timestamp of the request')
+    })
 @rostra_conf.route('/result/delete', methods=['POST'])
-@rostra_conf.doc(params={'rule_id': 'Id of the rule', 'address': 'address of runner result'})
+@rostra_conf.doc(body=result_del_fields, responses={200:'Success'})
 class RunresultDelete(Resource):
 
     @api.response(201, 'Address Deleted')
