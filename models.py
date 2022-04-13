@@ -90,6 +90,7 @@ class GithubCommit(me.Document):
     login=StringField()
     PublicKey=StringField()
 class GithubPeopel(me.Document):
+    user_id=StringField()
     name=StringField()
     email=StringField()
     login=StringField()

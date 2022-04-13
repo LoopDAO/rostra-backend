@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import os
+import time
 import uuid
 from email import message
 from mimetypes import init
@@ -32,7 +33,6 @@ api = Api(app, version='1.0', title='Rostra Backend API', description='Rostra Ba
 rostra_conf = api.namespace('', description='Rostra APIs')
 
 load_dotenv()
-
 runner_start(app)
 
 CORS(app)
@@ -244,10 +244,13 @@ rule_fields = rostra_conf.model(
         "creator": fields.String,
         "ipfsAddr": fields.String(required=True, description='The ipfs address of the rule'),
         "signature": fields.String(requerd=True, description='The signature of the rule'),
+        "timestamp": fields.Integer(required=True, description='The milliseconds timestamp of the rule'),
         "action": fields.List(fields.String, required=True, description='The action info of the rule'),
-        "nft": fields.List(fields.String, required=True, description='The nft info of the rule'),
+        "nft": fields.List(fields.String, required=True, description='The nft info of the rule')
     })
 
+def get_utc_timestamp():
+    return int(time.time())
 
 @rostra_conf.route('/rule/add/', methods=['POST'])
 class RuleAdd(Resource):
@@ -258,16 +261,17 @@ class RuleAdd(Resource):
     def post(self):
         try:
             data = api.payload
-            print(data)
-            ruleInfo = {
-                "name": data["name"],
-                "desc": data["desc"],
-                "creator": data["creator"],
-                "action": data["action"],
-                "nft": data["nft"]
-            },
 
             signature = data['signature']
+            timestamp=int(data['timestamp'])
+            time_s = datetime.datetime.fromtimestamp(timestamp/1000.0)
+            print(time_s)
+            
+            now = datetime.datetime.utcnow()
+            if(now - time_s).total_seconds() > 5*60:
+                return {'message': 'The timestamp is too old!'}, 401
+            if(now - time_s).total_seconds() < -5*60:
+                return {'message': 'The timestamp is too new!'}, 401
 
             # validation if the rule name already exists
             if len(Rule.objects(name=data['name'])) != 0:
@@ -276,12 +280,12 @@ class RuleAdd(Resource):
             if len(signature) == 0:
                 return ResponseInfo(401, 'The signature is empty')
 
-            message = json.dumps(ruleInfo, separators=(',', ':'))
+            message = str(timestamp)
             if len(message) > 2:
                 message = message[1:-1]
-            # result = flashsigner_verify(message=message, signature=signature)
-            # if result == False:
-            #     return {'message': 'The signature is error'}, 401
+            result = flashsigner_verify(message=message, signature=signature)
+            if result == False:
+                return ResponseInfo(401,'The signature is error') 
             rule = Rule(name=data['name'],
                         desc=data['desc'],
                         creator=data['creator'],
@@ -655,7 +659,7 @@ class GithubGetStars(Resource):
         try:
             data = api.payload
             
-            page = 1 if('page' not in data) else int(data['page'])
+            page = 0 if('page' not in data) else int(data['page'])
             per_page = 10 if('per_page' not in data) else  int(data['per_page'])
             
             commits = get_github_repo_stars(data['reponame'],page,per_page)
