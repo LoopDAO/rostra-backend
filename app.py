@@ -23,9 +23,11 @@ from github_pygithub import get_github_repo_commits, get_github_repo_stars
 from models import AddressList, Guild, Nft, Rule, RuleResult
 from rsa_verify import flashsigner_verify
 from runner import run_refresh_rule, runner_start
+from tools import logInit
+
+logInit('rostra_backend.log')
 
 app = Flask(__name__)
-
 app.config['MONGODB_SETTINGS'] = {'db': 'guild', 'host': 'localhost', 'port': 27017}
 
 db = MongoEngine()
@@ -258,7 +260,7 @@ class RuleAdd(Resource):
 
     @rostra_conf.doc(body=rule_fields, responses={201: 'Rule Created'})
     @api.response(500, 'Internal Error')
-    @api.response(401, 'Validation Error')
+    @api.response(402, 'sign Validation Error')
     def post(self):
         try:
             data = api.payload
@@ -579,7 +581,7 @@ def request_sign_verify(data):
 
     result = flashsigner_verify(message=str(timestamp), signature=signature)
     if result == False:
-        return ResponseInfo(401,'The signature is error') 
+        return ResponseInfo(402,'The signature is error') 
     return ResponseInfo(200,'sign verify success')
 
 result_del_fields = rostra_conf.model(

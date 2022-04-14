@@ -13,7 +13,7 @@ from isodate import parse_datetime
 from models import AddressList, Rule, RuleResult
 
 
-def method_runnert(a, b):
+def method_runner(a, b):
     print(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'Running')
     scan_rule_list()
 
@@ -21,7 +21,7 @@ def method_runnert(a, b):
 class RunnerConfig(object):  # 创建配置，用类
     JOBS = [{
         'id': 'job2',
-        'func': method_runnert,  # 方法名
+        'func': method_runner,  # 方法名
         'args': (1, 2),  # 入参
         'trigger': 'interval',  # interval表示循环任务
         'seconds': 125  # 每隔125秒执行一次,
@@ -124,8 +124,9 @@ def is_to_time(rule):
 
 
 def scan_rule_list():
-    # 未添加时间及类型检查
     rules = Rule.objects(finished=False)
+    logging.info("scan rule list {}".format(len(rules)))
+    
     for rule in rules:
         if is_to_time(rule) == False:
             logging.info(
