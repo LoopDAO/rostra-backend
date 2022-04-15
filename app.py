@@ -669,7 +669,7 @@ github_stars_fields = rostra_conf.model(
         'per_page': fields.Integer(required=False, min=10,description='per_page number. e.g. 10'),
     })
 
-@rostra_conf.route('/github/getstars/', methods=['POST'])
+@rostra_conf.route('/github/getstars/post/', methods=['POST'])
 @rostra_conf.doc(body=github_stars_fields, responses={201: 'Success'})
 class GithubGetStars(Resource):
 
@@ -688,7 +688,27 @@ class GithubGetStars(Resource):
         except Exception as e:
             logging.error(e)
             return {'error': str(e)}, 500
+@rostra_conf.route('/github/getstars/get', methods=['GET'])
+@rostra_conf.doc(params={'reponame,page,per_page': '?reponame=rebase-network/who-is-hiring&page=1&per_page=10'})
+class GithubGetStarsGET(Resource):
 
+    @api.response(201, 'Address Deleted')
+    @api.response(500, 'Internal Error')
+    @api.response(401, 'Validation Error')
+    def get(self):
+        try:
+            reponame = request.args.get('reponame')
+            page = int(request.args.get('page', 1))  # 当前在第几页
+            page = 0 if page < 1 else page
+
+            per_page = int(request.args.get('per_page', 10))  # 每页几条数据
+            per_page = 10 if per_page < 1 else per_page
+            
+            commits = get_github_repo_stars(reponame,page,per_page)
+            return jsonify({"result": commits})
+        except Exception as e:
+            logging.error(e)
+            return {'error': str(e)}, 500
 # ==========================================================
 # 统一接口返回信息
 def ResponseInfo(error, message):

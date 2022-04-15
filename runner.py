@@ -205,11 +205,11 @@ def run_github_discussions_ckb(action,keyword):
                     continue
             address = pick_ckb_address(bodyText)
             if address is not None:
-                print("Found address: {}".format(address))
+                logging.info("Found address: {}".format(address))
                 addresses.append(address)
                 
         if len(addresses) == 0:
-            print("No address found")
+            logging.info("No address found")
             return None, False
         return addresses, True
     except Exception as e:
