@@ -268,7 +268,7 @@ class RuleAdd(Resource):
             message,err = request_sign_verify(data)
             if(err!=200):
                 return message,err
-            
+
             # validation if the rule name already exists
             if len(Rule.objects(name=data['name'])) != 0:
                 return ResponseInfo(401, 'The Rule Name Already Exists! Please change your rule name')
@@ -566,11 +566,11 @@ def request_sign_verify(data):
     signature = data['signature']
     timestamp=int(data['timestamp'])
     time_s = datetime.fromtimestamp(timestamp/1000.0)
-    
+
     utc_dt = datetime.now(timezone.utc) # UTC time
     now = utc_dt.astimezone() # local time
     now = datetime.fromtimestamp(now.timestamp())
-   
+
     if(now - time_s).total_seconds() > 5*60:
         return {'message': 'The timestamp is too old!'}, 401
     if(now - time_s).total_seconds() < -5*60:
@@ -581,7 +581,7 @@ def request_sign_verify(data):
 
     result = flashsigner_verify(message=str(timestamp), signature=signature)
     if result == False:
-        return ResponseInfo(402,'The signature is error') 
+        return ResponseInfo(402,'The signature is error')
     return ResponseInfo(200,'sign verify success')
 
 result_del_fields = rostra_conf.model(
@@ -604,7 +604,7 @@ class RunresultDelete(Resource):
             message,err = request_sign_verify(data)
             if(err!=200):
                 return message,err
-            
+
             rule_id = data['rule_id']
             address = data['address']
 
@@ -639,23 +639,22 @@ github_commit_fields = rostra_conf.model(
     })
 
 
-@rostra_conf.route('/github/getcommits/', methods=['POST'])
+@rostra_conf.route('/github/getcommits/<username>/<reponame>', methods=['GET'])
+@rostra_conf.doc(params={'username': 'username'})
+@rostra_conf.doc(params={'reponame': 'reponame'})
+@rostra_conf.doc(params={'page,per_page': '?page=1&per_page=10'})
 @rostra_conf.doc(body=github_commit_fields, responses={201: 'Success'})
 class GithubGetCommits(Resource):
-
     @api.response(201, 'Address Deleted')
     @api.response(500, 'Internal Error')
     @api.response(401, 'Validation Error')
-    def post(self):
+    def get(self, username, reponame):
         try:
-            #json = post_github_graphql_commits('rebase-network/rostra-backend')
-            #return jsonify(json)
-            data = api.payload
-            page = 1 if('page' not in data) else int(data['page'])
-            per_page = 10 if('per_page' not in data) else  int(data['per_page'])
-            
+            page = int(request.args.get('page', 1))  # 当前在第几页
+            per_page = int(request.args.get('per_page', 10))  # 每页几条数据
+
             if(page >=1):
-                commits = get_github_repo_commits(data['reponame'],page,per_page)
+                commits = get_github_repo_commits(username + '/' + reponame,  page, per_page)
             else:
                 commits=[]
             return jsonify({"result": commits})
@@ -679,10 +678,10 @@ class GithubGetStars(Resource):
     def post(self):
         try:
             data = api.payload
-            
+
             page = 0 if('page' not in data) else int(data['page'])
             per_page = 10 if('per_page' not in data) else  int(data['per_page'])
-            
+
             commits = get_github_repo_stars(data['reponame'],page,per_page)
             return jsonify({"result": commits})
         except Exception as e:
