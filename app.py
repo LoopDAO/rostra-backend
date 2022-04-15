@@ -639,22 +639,20 @@ github_commit_fields = rostra_conf.model(
     })
 
 
-@rostra_conf.route('/github/getcommits/<username>/<reponame>', methods=['GET'])
-@rostra_conf.doc(params={'username': 'username'})
-@rostra_conf.doc(params={'reponame': 'reponame'})
-@rostra_conf.doc(params={'page,per_page': '?page=1&per_page=10'})
-@rostra_conf.doc(body=github_commit_fields, responses={201: 'Success'})
-class GithubGetCommits(Resource):
+@rostra_conf.route('/github/getcommits/get', methods=['GET'])
+@rostra_conf.doc(params={'reponame,page,per_page': '?reponame=rebase-network/who-is-hiring&page=1&per_page=10'})
+class GithubGetCommitsGET(Resource):
     @api.response(201, 'Address Deleted')
     @api.response(500, 'Internal Error')
     @api.response(401, 'Validation Error')
-    def get(self, username, reponame):
+    def get(self):
         try:
+            reponame = request.args.get('reponame')
             page = int(request.args.get('page', 1))  # 当前在第几页
             per_page = int(request.args.get('per_page', 10))  # 每页几条数据
 
             if(page >=1):
-                commits = get_github_repo_commits(username + '/' + reponame,  page, per_page)
+                commits = get_github_repo_commits(reponame,  page, per_page)
             else:
                 commits=[]
             return jsonify({"result": commits})
