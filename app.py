@@ -121,7 +121,7 @@ class Add(Resource):
         message = json.dumps(guildInfo, separators=(',', ':'))
         if len(message) > 2:
             message = message[1:-1]
-        result = flashsigner_verify(message=message, signature=signature)
+        result = flashsigner_verify(message=message,user_addr=guildInfo.creator, signature=signature)
         if result == False:
             return {'message': 'The signature is error'}, 401
         guild = Guild(guild_id=str(uuid.uuid4()),
@@ -579,7 +579,7 @@ def request_sign_verify(data):
     if len(signature) == 0:
         return ResponseInfo(401, 'The signature is empty')
 
-    result = flashsigner_verify(message=str(timestamp), signature=signature)
+    result = flashsigner_verify(message=str(timestamp),user_addr=data['creator'] ,signature=signature)
     if result == False:
         return ResponseInfo(402,'The signature is error')
     return ResponseInfo(200,'sign verify success')
