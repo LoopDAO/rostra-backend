@@ -30,7 +30,15 @@ class Nft(me.Document):
     # 2 - ticket
     type = IntField()
 
-
+class MintNftDefine(me.Document):
+    account=StringField()
+    name = StringField()
+    description = StringField()
+    image = StringField()
+    total=IntField()
+    cotaId = StringField()
+    signature=StringField()
+    txHash=StringField()
 #---------------------------------------------------------------------------------
 #rule
 class RuleCondition(me.Document):

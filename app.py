@@ -5,6 +5,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from email import message
+from inspect import signature
 from mimetypes import init
 from pprint import pprint
 from sqlite3 import Timestamp
@@ -20,7 +21,7 @@ from github import Github
 
 from github_graphql import post_github_graphql_commits
 from github_pygithub import get_github_repo_commits, get_github_repo_stars
-from models import AddressList, Guild, Nft, Rule, RuleResult
+from models import AddressList, Guild, MintNftDefine, Nft, Rule, RuleResult
 from rsa_verify import flashsigner_verify
 from runner import run_refresh_rule, runner_start
 from tools import logInit
@@ -46,7 +47,7 @@ app.url_map.strict_slashes = False
 @rostra_conf.route('/guild/get/', methods=['GET'])
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
-class Get(Resource):
+class GuildGetall(Resource):
 
     def get(self):
         guilds = Guild.objects()
@@ -57,7 +58,7 @@ class Get(Resource):
 @rostra_conf.doc(params={'guild_id': 'guild id'})
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
-class Get(Resource):
+class GuildGet(Resource):
 
     def get(self, guild_id):
         try:
@@ -75,7 +76,7 @@ class Get(Resource):
 @rostra_conf.doc(params={'ipfsAddr': 'ipfs addr'})
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
-class Get(Resource):
+class GuildGetByIpfsaddr(Resource):
 
     def get(self, ipfsAddr):
         try:
@@ -100,7 +101,7 @@ resource_fields = rostra_conf.model(
 
 
 @rostra_conf.route('/guild/add/', methods=['POST'])
-class Add(Resource):
+class GuildAdd(Resource):
 
     @rostra_conf.doc(body=resource_fields, responses={201: 'Guild Created'})
     @api.response(500, 'Internal Error')
@@ -136,7 +137,7 @@ class Add(Resource):
 
 @rostra_conf.route('/guild/delete/<guild_id>', methods=['DELETE'])
 @rostra_conf.doc(params={'guild_id': 'Id of the guild'})
-class Delete(Resource):
+class GuildDelete(Resource):
 
     @api.response(201, 'Guild Deleted')
     @api.response(500, 'Internal Error')
@@ -168,7 +169,7 @@ nft_model = rostra_conf.model(
 
 
 @rostra_conf.route('/nft/add/', methods=['POST'])
-class Add(Resource):
+class NFTAdd(Resource):
 
     @rostra_conf.doc(body=nft_model, responses={201: 'NFT Created'})
     @api.response(500, 'Internal Error')
@@ -199,11 +200,22 @@ class Add(Resource):
         except Exception as e:
             return {'error': str(e)}, 500
 
+#mint nft
+mint_nft_model = rostra_conf.model(
+    'mint_nft', {
+        'account': fields.String(required=True, description='The account address'),
+        'name': fields.String(required=True, description='The nft name'),
+        "desc": fields.String,
+        "image": fields.String(required=True, description='The image url of nft'),
+        'total': fields.Integer(required=True, description='The total number of nft'),
+        "cotaId": fields.String(required=True, description='The cota id of the nft'),
+        'txHash': fields.String(required=True, description='The txHash of the nft'),
+        })
 
 @rostra_conf.route('/nft/get/', methods=['GET'])
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
-class Get(Resource):
+class NFTGet(Resource):
 
     def get(self):
         nfts = Nft.objects(type=1)
@@ -214,7 +226,7 @@ class Get(Resource):
 @rostra_conf.doc(params={'cotaId': 'cota id of the nft'})
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
-class Get(Resource):
+class NFTCotaIDGet(Resource):
 
     def get(self, cotaId):
         try:
@@ -226,12 +238,69 @@ class Get(Resource):
                 return {"result": []}, 200
         except Exception as e:
             return {'error': str(e)}
+@rostra_conf.route('/mint-nft/add/', methods=['POST'])
+class MintNFTAdd(Resource):
 
+    @rostra_conf.doc(body=mint_nft_model, responses={201: 'NFT Created'})
+    @api.response(500, 'Internal Error')
+    @api.response(401, 'Validation Error')
+    def post(self):
+        try:
+            data = api.payload
+            print(data)
+            # validation if the nft name already exists
+            # if len(MintNftDefine.objects(name=data['name'])) != 0:
+            #     return ResponseInfo(401, 'The NFT Name Already Exists! Please change your nft name')
 
+            nft = MintNftDefine(
+                account=data['account'],
+                name=data['name'], 
+                description=data['desc'], 
+                image=data['image'], 
+                total=data['total'],
+                cotaId=data['cotaId'],
+                txHash=data['txHash'])
+            
+            nft.save()
+            return {'message': 'SUCCESS'}, 201
+        except Exception as e:
+            return {'error': str(e)}, 500
+@rostra_conf.route('/mint-nft/get/<cotaId>', methods=['GET'])
+@rostra_conf.doc(params={'cotaId': 'cota id of the nft'})
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class MintNFTCotaIDGet(Resource):
+
+    def get(self, cotaId):
+        try:
+            query = MintNftDefine.objects(cotaId=cotaId)
+            print(query)
+            if query is not None and len(query) != 0:
+                return jsonify({"result": query})
+            else:
+                return {"result": []}, 200
+        except Exception as e:
+            return {'error': str(e)}
+@rostra_conf.route('/mint-nft/account/<account>', methods=['GET'])
+@rostra_conf.doc(params={'account': 'account address of the User'})
+@api.response(200, 'Query Successful')
+@api.response(500, 'Internal Error')
+class MintNFTDGetByAccount(Resource):
+
+    def get(self, account):
+        try:
+            query = MintNftDefine.objects(account=account)
+            print(query)
+            if query is not None and len(query) != 0:
+                return jsonify({"result": query})
+            else:
+                return {"result": []}, 200
+        except Exception as e:
+            return {'error': str(e)}
 @rostra_conf.route('/ticket/get/', methods=['GET'])
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
-class Get(Resource):
+class TicketGet(Resource):
 
     def get(self):
         tickets = Nft.objects(type=2)
@@ -694,7 +763,6 @@ class GithubGetStarsGET(Resource):
     @api.response(401, 'Validation Error')
     def get(self):
         try:
-            reponame = request.args.get('reponame')
             page = int(request.args.get('page', 1))  # 当前在第几页
             page = 0 if page < 1 else page
 
