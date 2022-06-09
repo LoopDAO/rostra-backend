@@ -35,9 +35,9 @@ nft_model = rostra_conf.model(
     })
 
 
-#mint nft
-mint_nft_model = rostra_conf.model(
-    'mint_nft', {
+# issue nft
+issue_nft_model = rostra_conf.model(
+    'issue_nft', {
         'account': fields.String(required=True, description='The account address'),
         'name': fields.String(required=True, description='The nft name'),
         "desc": fields.String,
@@ -47,19 +47,9 @@ mint_nft_model = rostra_conf.model(
         'txHash': fields.String(required=True, description='The txHash of the nft'),
         })
 
-@rostra_conf.route('/nft/get/', methods=['GET'])
-@api.response(200, 'Query Successful')
-@api.response(500, 'Internal Error')
-class NFTGet(Resource):
-
-    def get(self):
-        nfts = Nft.objects(type=1)
-        return jsonify({"result": nfts})
-
-@rostra_conf.route('/mint-nft/add/', methods=['POST'])
+@rostra_conf.route('/nft/add/', methods=['POST'])
 class MintNFTAdd(Resource):
-
-    @rostra_conf.doc(body=mint_nft_model, responses={201: 'NFT Created'})
+    @rostra_conf.doc(body=issue_nft_model, responses={201: 'NFT Created'})
     @api.response(500, 'Internal Error')
     @api.response(401, 'Validation Error')
     def post(self):
@@ -84,7 +74,7 @@ class MintNFTAdd(Resource):
         except Exception as e:
             return {'error': str(e)}, 500
 
-@rostra_conf.route('/mint-nft/account/<account>', methods=['GET'])
+@rostra_conf.route('/nft/account/<account>', methods=['GET'])
 @rostra_conf.doc(params={'account': 'account address of the User'})
 @api.response(200, 'Query Successful')
 @api.response(500, 'Internal Error')
