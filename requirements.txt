@@ -9,4 +9,3 @@ mongoengine==0.23.1
 python-dotenv==0.20.0
 requests==2.26.0
 rsa==4.8
-PyGithub==1.55
